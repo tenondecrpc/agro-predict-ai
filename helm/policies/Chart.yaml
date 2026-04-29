@@ -1,0 +1,16 @@
+apiVersion: v2
+name: agropredict-ai-policies
+description: Kyverno admission policies for AgroPredict AI supply-chain enforcement
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kyverno
+  - supply-chain
+  - admission
+  - cosign
+  - slsa
+sources:
+  - https://github.com/agropredict-ai/agropredict-ai
+maintainers:
+  - name: agropredict-ai

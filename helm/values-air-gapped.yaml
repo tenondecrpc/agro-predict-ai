@@ -1,0 +1,84 @@
+profile: air_gapped
+
+llm:
+  primaryProvider: opencode-go
+  opencodeGo:
+    endpoint: "http://agropredict-ai-opencode-go:8080/v1"
+    defaultModel: "opencode-go/kimi-k2.5"
+  vendorApiKeys:
+    openai: ""
+    anthropic: ""
+
+database:
+  tlsEnabled: true
+
+redis:
+  tlsEnabled: true
+
+encryption:
+  provider: vault
+  activeKeyId: kek-airgap-v1
+
+networkPolicy:
+  denyExternalLlmEgress: true
+  allowedCidrs: []
+  internalServices:
+    - name: opencode-go
+      podSelector:
+        app: agropredict-ai-opencode-go
+      port: 8080
+    - name: embedding
+      podSelector:
+        app: agropredict-ai-embedding
+      port: 8080
+  internalEmbedding:
+    podSelector:
+      app: agropredict-ai-embedding
+    port: 8080
+  internalDns:
+    enabled: true
+    namespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    podSelector:
+      k8s-app: kube-dns
+    ports:
+      - protocol: UDP
+        port: 53
+      - protocol: TCP
+        port: 53
+
+vault:
+  devMode: false
+  bootstrap:
+    enabled: true
+    authMount: kubernetes
+    policyName: agropredict-ai-backend
+
+internalRag:
+  enabled: "false"
+  embeddingEndpoint: "http://agropredict-ai-embedding:8080/embed"
+  embeddingModel: "self-hosted-embedding-v1"
+
+rollout:
+  enabled: false
+
+# Air-gapped profile: set baseUrl to the on-premises GitHub Enterprise Server API endpoint.
+# The App private key must be pre-seeded in Vault before pod startup (offline bootstrap).
+# branchProtectionEnforce defaults to "false" (shadow mode) to allow initial onboarding.
+github:
+  baseUrl: "https://github.example.internal/api/v3"
+  branchProtectionEnforce: "false"
+
+# LangSmith is disabled in air-gapped deployments. DO_NOT_TRACK and LANGCHAIN_TRACING_V2
+# are set by the templates when enabled is false to prevent PostHog network flush errors
+# caused by the langsmith transitive dependency trying to reach vendor analytics endpoints.
+langsmith:
+  enabled: false
+
+# Air-gapped deployments do not call an external statuspage provider.
+# Operators use the internal admin UI tile and `/api/v1/status-page` endpoint instead.
+statusPageSync:
+  enabled: false
+
+pagerDuty:
+  enabled: false

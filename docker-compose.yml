@@ -1,0 +1,103 @@
+# Local development dependencies
+# Use this file to run PostgreSQL and Redis locally while developing the
+# backend and frontend directly on your machine (no Kubernetes required).
+#
+# Quick start:
+#   make local-up      # docker compose up -d
+#   make local-down    # docker compose down -v
+#   make dev-backend   # run backend natively with hot reload
+#   make dev-frontend  # run frontend natively with Vite dev server
+#
+# What this covers (infrastructure base):
+#   - PostgreSQL 16 with pgvector (checkpoints, memory, config, audit, metering)
+#   - Redis 7 (ARQ queues, pub/sub, circuit breaker, idempotency)
+#
+# Optional services (use profiles):
+#   - Oracle XE 23ai (profile: oracle) - for APEX integration testing
+#   - ARQ Worker (profile: worker) - for async webhook processing
+#
+# What is NOT included (external integrations required for a full pipeline):
+#   - LLM Provider (OpenAI, Anthropic, Ollama, or OpenCode-Go endpoint)
+#   - GitHub Integration (App or PAT for PR creation)
+#
+# See README.md section "Integraciones necesarias para un flujo completo"
+# for details on configuring these integrations.
+#
+# The backend will auto-connect if BACKEND_DATABASE_URL and BACKEND_REDIS_URL
+# are not already set in your environment (see Makefile dev-backend target).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: agropredict
+    ports:
+      - "5432:5432"
+    volumes:
+      - agropredict-ai-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d agropredict"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - agropredict-ai-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  oracle-xe:
+    image: gvenzl/oracle-xe:23-slim
+    environment:
+      ORACLE_PASSWORD: Oracle123
+      ORACLE_DATABASE: APEXDB
+      APP_USER: apex_user
+      APP_USER_PASSWORD: apex_pass
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - agropredict-ai-oracle:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD-SHELL", "echo exit | sqlplus -s apex_user/apex_pass@//localhost:1521/APEXDB"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    profiles:
+      - oracle
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uv run arq backend.worker.WorkerSettings
+    environment:
+      - BACKEND_DATABASE_URL=postgresql+psycopg://dev:dev@postgres:5432/agropredict
+      - BACKEND_REDIS_URL=redis://redis:6379/0
+      - BACKEND_ENCRYPTION_ACTIVE_KEY_ID=kek-dev-v1
+      - BACKEND_ENCRYPTION_ACTIVE_WRAPPING_KEY=${BACKEND_ENCRYPTION_ACTIVE_WRAPPING_KEY:-}
+      - BACKEND_WEBHOOK_SHARED_SECRET=${BACKEND_WEBHOOK_SHARED_SECRET:-}
+      - BACKEND_WORKER_CONTROLLER_MODE=redis
+      - BACKEND_WORKER_JOB_TIMEOUT_SECONDS=300
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - worker
+
+volumes:
+  agropredict-ai-postgres:
+  agropredict-ai-redis:
+  agropredict-ai-oracle:

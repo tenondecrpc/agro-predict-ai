@@ -1,0 +1,126 @@
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: agropredict-ai-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: agropredict-ai-backend
+  strategy:
+    canary:
+      steps:
+{{ toYaml .Values.rollout.strategy.steps | indent 8 }}
+      analysis:
+        templates:
+          - templateName: api-slo-analysis
+        startingStep: 1
+  template:
+    metadata:
+      labels:
+        app: agropredict-ai-backend
+    spec:
+      serviceAccountName: agropredict-ai-backend
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: agropredict-ai-backend
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: BACKEND_DEPLOYMENT_PROFILE
+              value: "{{ .Values.profile }}"
+            - name: BACKEND_PROVIDER_OPENCODE_GO_ENDPOINT
+              value: "{{ .Values.llm.opencodeGo.endpoint }}"
+            - name: BACKEND_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.urlKey }}
+            - name: BACKEND_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.secretName }}
+                  key: {{ .Values.redis.urlKey }}
+            - name: BACKEND_DATABASE_POOL_SIZE
+              value: "{{ .Values.database.poolSize }}"
+            - name: BACKEND_DATABASE_STATEMENT_TIMEOUT_MS
+              value: "{{ .Values.database.statementTimeoutMs }}"
+            - name: BACKEND_ENCRYPTION_PROVIDER
+              value: "{{ .Values.encryption.provider }}"
+            - name: BACKEND_ENCRYPTION_ACTIVE_KEY_ID
+              value: "{{ .Values.encryption.activeKeyId }}"
+            - name: BACKEND_ENCRYPTION_ACTIVE_WRAPPING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.encryption.wrappingSecretName }}
+                  key: {{ .Values.encryption.wrappingKeyKey }}
+            - name: BACKEND_ENCRYPTION_PREVIOUS_KEY_IDS
+              value: "{{ .Values.encryption.previousKeyIds }}"
+            - name: INTERNAL_RAG_ENABLED
+              value: "{{ .Values.internalRag.enabled }}"
+            - name: INTERNAL_RAG_EMBEDDING_ENDPOINT
+              value: "{{ .Values.internalRag.embeddingEndpoint }}"
+            - name: INTERNAL_RAG_EMBEDDING_MODEL
+              value: "{{ .Values.internalRag.embeddingModel }}"
+            {{- if .Values.langsmith.enabled }}
+            - name: LANGCHAIN_TRACING_V2
+              value: "true"
+            - name: LANGSMITH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.langsmith.secretName }}
+                  key: {{ .Values.langsmith.apiKeySecretKey }}
+            - name: LANGSMITH_PROJECT
+              value: "{{ .Values.langsmith.project }}"
+            {{- if .Values.langsmith.endpoint }}
+            - name: LANGSMITH_ENDPOINT
+              value: "{{ .Values.langsmith.endpoint }}"
+            {{- end }}
+            {{- else }}
+            - name: DO_NOT_TRACK
+              value: "1"
+            - name: LANGCHAIN_TRACING_V2
+              value: "false"
+            {{- end }}
+          resources:
+            requests:
+              cpu: {{ .Values.backend.resources.requests.cpu }}
+              memory: {{ .Values.backend.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.backend.resources.limits.cpu }}
+              memory: {{ .Values.backend.resources.limits.memory }}
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+{{- end }}

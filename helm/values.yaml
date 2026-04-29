@@ -1,0 +1,317 @@
+profile: connected
+
+llm:
+  primaryProvider: opencode-go
+  opencodeGo:
+    endpoint: "http://agropredict-ai-opencode-go:8080/v1"
+    defaultModel: "opencode-go/kimi-k2.5"
+  vendorApiKeys:
+    openai: ""
+    anthropic: ""
+
+image:
+  repository: agropredict-ai/backend
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+database:
+  secretName: agropredict-ai-persistence
+  urlKey: database-url
+  poolSize: 10
+  statementTimeoutMs: 5000
+  tlsEnabled: true
+
+redis:
+  secretName: agropredict-ai-persistence
+  urlKey: redis-url
+  maxConnections: 20
+  tlsEnabled: true
+
+encryption:
+  provider: vault
+  activeKeyId: kek-v1
+  wrappingSecretName: agropredict-ai-persistence
+  wrappingKeyKey: wrapping-key
+  previousKeyIds: ""
+
+externalSecrets:
+  enabled: true
+  secretStoreName: vault-backend
+  secretPath: kv/agropredict-ai/runtime
+
+networkPolicy:
+  denyExternalLlmEgress: false
+  allowedCidrs:
+    - 0.0.0.0/0
+  internalServices:
+    - name: opencode-go
+      podSelector:
+        app: agropredict-ai-opencode-go
+      port: 8080
+    - name: embedding
+      podSelector:
+        app: agropredict-ai-embedding
+      port: 8080
+  internalEmbedding:
+    podSelector:
+      app: agropredict-ai-embedding
+    port: 8080
+  internalDns:
+    enabled: true
+    namespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    podSelector:
+      k8s-app: kube-dns
+    ports:
+      - protocol: UDP
+        port: 53
+      - protocol: TCP
+        port: 53
+
+vault:
+  devMode: false
+  bootstrap:
+    enabled: false
+    authMount: kubernetes
+    policyName: agropredict-ai-backend
+
+internalRag:
+  enabled: "false"
+  embeddingEndpoint: "http://agropredict-ai-embedding:8080/embed"
+  embeddingModel: "self-hosted-embedding-v1"
+
+rollout:
+  enabled: true
+  strategy:
+    steps:
+      - setWeight: 5
+      - pause:
+          duration: 60
+      - setWeight: 25
+      - pause:
+          duration: 120
+      - setWeight: 50
+      - pause:
+          duration: 180
+      - setWeight: 100
+
+# GitHub App integration (connected profile).
+# The App private key is stored in Vault; never set it as a plain value here.
+# externalSecrets must be enabled to pull GITHUB_APP_PRIVATE_KEY_PEM from Vault.
+github:
+  appId: ""
+  # Vault path to the GitHub App RSA private key PEM (resolved via External Secrets Operator).
+  privateKeyVaultPath: "secret/github/app-private-key"
+  # Override for GitHub Enterprise Server deployments; leave empty for github.com.
+  baseUrl: ""
+  # Kill switch: set to "true" to flip branch-protection from shadow to enforce mode.
+  branchProtectionEnforce: "false"
+  # ExternalSecrets ref for the App private key secret name.
+  privateKeySecretName: agropredict-ai-github
+  privateKeySecretKey: app-private-key-pem
+
+# LangSmith tracing for agent observability (connected profile).
+# enabled: flip to true per environment via a values override file.
+# The API key is pulled from Vault via ESO alongside the other runtime secrets.
+# vaultProperty must match the key name stored at externalSecrets.secretPath in Vault.
+# Leave endpoint empty to use LangSmith cloud (https://api.smith.langchain.com).
+# For a self-hosted LangSmith instance set endpoint to your internal server URL.
+langsmith:
+  enabled: false
+  secretName: agropredict-ai-persistence
+  apiKeySecretKey: langsmith-api-key
+  vaultProperty: langsmith_api_key
+  endpoint: ""
+  project: "agropredict-ai"
+
+statusPageSync:
+  enabled: true
+  schedule: "*/5 * * * *"
+  image:
+    repository: curlimages/curl
+    tag: "8.11.1"
+    pullPolicy: IfNotPresent
+  backendUrl: "http://agropredict-ai-backend:8000/api/v1/status-page"
+  secretName: agropredict-ai-persistence
+  endpointSecretKey: statuspage-webhook-url
+  vaultProperty: statuspage_webhook_url
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+pagerDuty:
+  enabled: false
+  secretName: agropredict-ai-paging
+  routingKeySecretKey: pagerduty-routing-key
+  vaultProperty: pagerduty_routing_key
+  severityServiceIds:
+    sev1: ""
+    sev2: ""
+    sev3: ""
+
+# Argo Rollouts controller (deployed alongside the chart when enabled).
+argoRollouts:
+  controller:
+    enabled: false
+  notifications:
+    enabled: false
+
+# Worker rollout configuration (mirrors API rollout strategy).
+# Worker HPA and PDB.
+worker:
+  image:
+    repository: agropredict-ai/worker
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  rollout:
+    enabled: true
+    strategy:
+      steps:
+        - setWeight: 5
+        - pause:
+            duration: 60
+        - setWeight: 25
+        - pause:
+            duration: 120
+        - setWeight: 50
+        - pause:
+            duration: 180
+        - setWeight: 100
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 75
+    targetMemoryUtilization: 80
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# Frontend blue/green rollout configuration.
+# Frontend HPA and PDB.
+frontend:
+  image:
+    repository: agropredict-ai/frontend
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: "500m"
+      memory: 256Mi
+  service:
+    port: 3000
+  rollout:
+    enabled: true
+    strategy: blueGreen
+    activeService: agropredict-ai-frontend-active
+    previewService: agropredict-ai-frontend-preview
+    autoPromotionEnabled: false
+    postPromotionAnalysis:
+      steps:
+        - pause:
+            duration: 120
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilization: 70
+    targetMemoryUtilization: 80
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# Analysis templates for SLO-driven rollouts.
+analysis:
+  errorRateThreshold: 0.05
+  latencyP95ThresholdMs: 2000
+  circuitBreakerOpenThreshold: 3
+  dlqGrowthThreshold: 10
+  poolSaturationThreshold: 0.85
+  prometheusAddress: "http://prometheus-server.monitoring.svc.cluster.local:9090"
+
+# Feature flag kill switches.
+featureFlags:
+  enabled: false
+  provider: unleash
+  unleash:
+    url: "http://unleash-web:4242/api"
+    appName: "agropredict-ai"
+    environment: "default"
+    apiKeySecretName: agropredict-ai-feature-flags
+    apiKeySecretKey: unleash-client-token
+  launchDarkly:
+    sdkKeySecretName: agropredict-ai-feature-flags
+    sdkKeySecretKey: launchdarkly-sdk-key
+  postgresMirror:
+    enabled: true
+    syncIntervalSeconds: 30
+    ttlSeconds: 300
+  mandatoryFlags:
+    llmProviderAnthropic:
+      key: "llm_provider_anthropic"
+      enabled: true
+      owner: "llm-governance"
+      description: "Kill switch for Anthropic provider routing"
+    llmProviderOpenai:
+      key: "llm_provider_openai"
+      enabled: true
+      owner: "llm-governance"
+      description: "Kill switch for OpenAI provider routing"
+    prCreation:
+      key: "pr_creation"
+      enabled: true
+      owner: "runtime-pipeline"
+      description: "Kill switch for PR creation node"
+    graphActivation:
+      key: "graph_activation"
+      enabled: true
+      owner: "runtime-pipeline"
+      description: "Kill switch for graph execution activation"
+    sandboxRuntimeGvisor:
+      key: "sandbox_runtime_gvisor"
+      enabled: true
+      owner: "sandbox-execution"
+      description: "Kill switch for gVisor sandbox runtime"
+    ticketProcessing:
+      key: "ticket_processing"
+      enabled: true
+      owner: "runtime-pipeline"
+      description: "Global kill switch for ticket processing"
+  staleFlagDays: 90
+
+# Backend resource governance.
+backend:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilization: 70
+    targetMemoryUtilization: 80
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# Vault server URL (parameterized for ESO).
+vault:
+  server: "https://vault.example.internal"

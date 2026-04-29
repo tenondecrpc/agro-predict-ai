@@ -1,0 +1,30 @@
+{
+  "title": "Persistence Backbone",
+  "panels": [
+    {
+      "id": "migration",
+      "title": "Migration Revision",
+      "query": "agropredict_persistence_migration_info"
+    },
+    {
+      "id": "pool",
+      "title": "Database Pool",
+      "query": "agropredict_database_pool_utilisation_ratio"
+    },
+    {
+      "id": "breaker",
+      "title": "Provider Circuit Breaker",
+      "query": "agropredict_provider_circuit_breaker_state"
+    },
+    {
+      "id": "dlq",
+      "title": "DLQ Depth",
+      "query": "agropredict_dlq_depth"
+    },
+    {
+      "id": "rotation",
+      "title": "Key Rotation Due Count",
+      "query": "agropredict_encryption_rotation_due_total"
+    }
+  ]
+}

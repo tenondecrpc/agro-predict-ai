@@ -1,0 +1,1130 @@
+from __future__ import annotations
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    MetaData,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import UserDefinedType
+
+
+class Vector(UserDefinedType):
+    cache_ok = True
+
+    def __init__(self, dimensions: int) -> None:
+        self.dimensions = dimensions
+
+    def get_col_spec(self, **_: object) -> str:
+        return f"vector({self.dimensions})"
+
+NAMING_CONVENTION = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+
+metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+runs = Table(
+    "runs",
+    metadata,
+    # High-level run state lives here; LangGraph checkpoints land in
+    # PostgresSaver-managed tables in a later task.
+    Column("run_id", String(64), primary_key=True),
+    Column("thread_id", String(255), nullable=False, unique=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("repo_id", String(255), nullable=False),
+    Column("ticket_key", String(128), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("current_node", String(64), nullable=False),
+    Column("paused_at_node", String(64), nullable=True),
+    Column("escalation_reason", String(128), nullable=True),
+    Column("escalation_sink", Text(), nullable=True),
+    Column("config_snapshot_id", String(255), nullable=False),
+    Column("graph_profile_id", String(255), nullable=False),
+    Column("catalog_version", String(255), nullable=False),
+    Column("state_schema_version", String(32), nullable=False, server_default=text("'1'")),
+    Column(
+        "artifact_hashes",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "run_payload",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+webhook_idempotency_records = Table(
+    "webhook_idempotency_records",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("source", String(64), nullable=False),
+    Column("delivery_id", String(255), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("endpoint", String(255), nullable=False),
+    Column("hmac_digest", String(128), nullable=False),
+    Column("signature_hash", String(64), nullable=True),
+    Column("disposition_status", String(32), nullable=False),
+    Column(
+        "received_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("source", "delivery_id", name="uq_webhook_idempotency_source_delivery"),
+    UniqueConstraint("source", "delivery_id", "signature_hash", name="uq_webhook_idempotency_source_delivery_sighash"),
+)
+
+webhook_secret_rotations = Table(
+    "webhook_secret_rotations",
+    metadata,
+    Column("rotation_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("previous_secret_hash", String(128), nullable=True),
+    Column("rotation_overlap_until", DateTime(timezone=True), nullable=True),
+    Column("rotated_by", String(255), nullable=False),
+    Column(
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+webhook_rate_limit_rejections = Table(
+    "webhook_rate_limit_rejections",
+    metadata,
+    Column("rejection_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("ticket_key", String(128), nullable=False),
+    Column("source", String(64), nullable=False),
+    Column("delivery_id", String(255), nullable=False),
+    Column("remote_addr", String(64), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+credential_rotation_schedule = Table(
+    "credential_rotation_schedule",
+    metadata,
+    Column("schedule_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("credential_kind", String(64), nullable=False),
+    Column("credential_id", String(255), nullable=False),
+    Column("rotated_at", DateTime(timezone=True), nullable=False),
+    Column("next_rotation_due", DateTime(timezone=True), nullable=False),
+    Column("rotation_sla_days", Integer, nullable=False, server_default=text("90")),
+    Column("overdue", Boolean, nullable=False, server_default=text("false")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("tenant_id", "team_id", "credential_kind", "credential_id", name="uq_credential_rotation_scope"),
+)
+
+break_glass_grants = Table(
+    "break_glass_grants",
+    metadata,
+    Column("grant_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("requested_by", String(255), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column("scope", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("approved_by_first", String(255), nullable=True),
+    Column("approved_by_second", String(255), nullable=True),
+    Column("granted_at", DateTime(timezone=True), nullable=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    Column("revoked_by", String(255), nullable=True),
+    Column("revoke_reason", Text, nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+kek_versions = Table(
+    "kek_versions",
+    metadata,
+    Column("kek_id", String(64), primary_key=True),
+    Column("kms_ref", String(512), nullable=False),
+    Column("introduced_at", DateTime(timezone=True), nullable=False),
+    Column("retired_at", DateTime(timezone=True), nullable=True),
+    Column("is_default", Boolean, nullable=False, server_default=text("false")),
+    Column("introduced_by", String(255), nullable=False),
+    Column(
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+dead_letter_records = Table(
+    "dead_letter_records",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("job_id", String(64), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("queue_name", String(255), nullable=False),
+    Column("worker_id", String(255), nullable=True),
+    Column("failure_reason", Text, nullable=False),
+    Column("checkpoint_ref", Text, nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+budget_cap_snapshots = Table(
+    "budget_cap_snapshots",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False, unique=True),
+    Column("ticket_key", String(128), nullable=False),
+    Column("role", String(64), nullable=False),
+    Column("ticket_cap_usd", Numeric(14, 6), nullable=False),
+    Column("daily_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column("monthly_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+budget_reservations = Table(
+    "budget_reservations",
+    metadata,
+    Column("reservation_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ticket_key", String(128), nullable=False),
+    Column("role", String(64), nullable=False),
+    Column("reserved_amount_usd", Numeric(14, 6), nullable=False),
+    Column("ticket_cap_usd", Numeric(14, 6), nullable=False),
+    Column("daily_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column("monthly_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column("ticket_cap_remaining_usd", Numeric(14, 6), nullable=False),
+    Column("daily_team_cap_remaining_usd", Numeric(14, 6), nullable=False),
+    Column("monthly_team_cap_remaining_usd", Numeric(14, 6), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("release_reason", Text, nullable=True),
+    Column("released_amount_usd", Numeric(14, 6), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+budget_charges = Table(
+    "budget_charges",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("reservation_id", String(64), nullable=False, unique=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("estimated_cost_usd", Numeric(14, 6), nullable=False),
+    Column("actual_cost_usd", Numeric(14, 6), nullable=False),
+    Column("refunded_amount_usd", Numeric(14, 6), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+budget_denials = Table(
+    "budget_denials",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ticket_key", String(128), nullable=False),
+    Column("role", String(64), nullable=False),
+    Column("requested_amount_usd", Numeric(14, 6), nullable=False),
+    Column("ticket_cap_usd", Numeric(14, 6), nullable=False),
+    Column("daily_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column("monthly_team_cap_usd", Numeric(14, 6), nullable=False),
+    Column("denial_reason", String(64), nullable=False),
+    Column("evidence_summary", Text, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+metering_facts = Table(
+    "metering_facts",
+    metadata,
+    Column("usage_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("run_id", String(64), nullable=False),
+    Column("ticket_key", String(128), nullable=False),
+    Column("role", String(64), nullable=False),
+    Column("provider_id", String(128), nullable=False),
+    Column("model_id", String(255), nullable=False),
+    Column("deployment_profile", String(64), nullable=False),
+    Column("fallback_used", Boolean, nullable=False, server_default=text("false")),
+    Column("input_tokens", Integer, nullable=False),
+    Column("output_tokens", Integer, nullable=False),
+    Column("cached_tokens", Integer, nullable=False, server_default=text("0")),
+    Column("latency_ms", Integer, nullable=False),
+    Column("request_count", Integer, nullable=False, server_default=text("1")),
+    Column("reservation_id", String(64), nullable=True),
+    Column("estimated_cost_usd", Numeric(14, 6), nullable=False),
+    Column("actual_cost_usd", Numeric(14, 6), nullable=False),
+    Column("rate_card_id", String(255), nullable=False),
+    Column("provider_request_id", String(255), nullable=True),
+    Column("trace_id", String(255), nullable=False),
+    Column("span_id", String(255), nullable=False),
+    Column("started_at", DateTime(timezone=True), nullable=False),
+    Column("completed_at", DateTime(timezone=True), nullable=False),
+    Column("status", String(64), nullable=False),
+)
+
+metering_hourly_rollups = Table(
+    "metering_hourly_rollups",
+    metadata,
+    Column("rollup_id", String(255), primary_key=True),
+    Column("bucket_start", DateTime(timezone=True), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("role", String(64), nullable=False),
+    Column("provider_id", String(128), nullable=False),
+    Column("model_id", String(255), nullable=False),
+    Column("rate_card_id", String(255), nullable=False),
+    Column("request_count", Integer, nullable=False),
+    Column("total_input_tokens", Integer, nullable=False),
+    Column("total_output_tokens", Integer, nullable=False),
+    Column("total_actual_cost_usd", Numeric(14, 6), nullable=False),
+    Column("usage_ids", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("sealed", Boolean, nullable=False, server_default=text("false")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+model_catalog_entries = Table(
+    "model_catalog_entries",
+    metadata,
+    Column("model_id", String(255), primary_key=True),
+    Column("provider_id", String(128), nullable=False),
+    Column("deployment_profile", String(64), primary_key=True),
+    Column("max_input_tokens", Integer, nullable=False),
+    Column("max_output_tokens", Integer, nullable=False),
+    Column("default_price_card_id", String(255), nullable=False),
+    Column("supports_tools", Boolean, nullable=False, server_default=text("false")),
+    Column("supports_json_mode", Boolean, nullable=False, server_default=text("false")),
+    Column("supports_streaming", Boolean, nullable=False, server_default=text("false")),
+    Column(
+        "allowed_fallback_targets",
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+role_token_policies = Table(
+    "role_token_policies",
+    metadata,
+    Column("role", String(64), primary_key=True),
+    Column("max_input_tokens", Integer, nullable=False),
+    Column("max_output_tokens", Integer, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+provider_health_events = Table(
+    "provider_health_events",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("provider_id", String(128), nullable=False),
+    Column("event_kind", String(64), nullable=False),
+    Column("state", String(32), nullable=False),
+    Column("consecutive_failures", Integer, nullable=False, server_default=text("0")),
+    Column("remaining_probe_attempts", Integer, nullable=False, server_default=text("0")),
+    Column("evidence_summary", Text, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+graph_versions = Table(
+    "graph_versions",
+    metadata,
+    Column("record_id", String(64), primary_key=True),
+    Column("version_number", Integer, nullable=False, unique=True),
+    Column("created_by", String(255), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+agent_versions = Table(
+    "agent_versions",
+    metadata,
+    Column("record_id", String(64), primary_key=True),
+    Column("version_number", Integer, nullable=False, unique=True),
+    Column("created_by", String(255), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("payload", JSONB, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+shadow_reports = Table(
+    "shadow_reports",
+    metadata,
+    Column("report_id", String(64), primary_key=True),
+    Column("candidate_version_id", String(64), nullable=False),
+    Column("active_version_id", String(64), nullable=True),
+    Column("success_rate_delta", Numeric(8, 4), nullable=False),
+    Column("cost_delta_usd", Numeric(12, 4), nullable=False),
+    Column("safety_regressions", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("blocked", Boolean, nullable=False),
+    Column("blocking_reasons", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("report_payload", JSONB, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+snapshots = Table(
+    "snapshots",
+    metadata,
+    Column("snapshot_id", String(64), primary_key=True),
+    Column("graph_version_id", String(64), nullable=False),
+    Column("agent_version_ids", JSONB, nullable=False),
+    Column("shadow_report_id", String(64), nullable=True),
+    Column("supersedes_snapshot_id", String(64), nullable=True),
+    Column("created_by", String(255), nullable=False),
+    Column("evidence_summary", Text, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+control_plane_state = Table(
+    "control_plane_state",
+    metadata,
+    Column("state_key", String(32), primary_key=True),
+    Column("active_snapshot_id", String(64), nullable=True),
+    Column("revision", Integer, nullable=False, server_default=text("0")),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+run_snapshot_bindings = Table(
+    "run_snapshot_bindings",
+    metadata,
+    Column("run_id", String(64), primary_key=True),
+    Column("snapshot_id", String(64), nullable=False),
+    Column("status", String(32), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+audit_events = Table(
+    "audit_events",
+    metadata,
+    Column("event_id", String(64), primary_key=True),
+    Column("action", String(32), nullable=False),
+    Column("actor", String(255), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("target_id", String(64), nullable=False),
+    Column("evidence_summary", Text, nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+api_deprecations = Table(
+    "api_deprecations",
+    metadata,
+    Column("deprecation_id", String(64), primary_key=True),
+    Column("route", String(255), nullable=False),
+    Column("method", String(16), nullable=False),
+    Column("version", String(32), nullable=False),
+    Column("deprecated_at", DateTime(timezone=True), nullable=False),
+    Column("sunset_at", DateTime(timezone=True), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("replacement_route", String(255), nullable=True),
+    Column("active", Boolean, nullable=False, server_default=text("true")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("route", "method", "version", name="uq_api_deprecations_route_method_version"),
+)
+
+github_app_installations = Table(
+    "github_app_installations",
+    metadata,
+    Column("installation_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("account_login", String(255), nullable=False),
+    Column("github_installation_id", BigInteger, nullable=False),
+    Column("permissions_hash", String(128), nullable=False),
+    Column("github_base_url", String(512), nullable=False, server_default=text("'https://api.github.com'")),
+    Column("drift_acknowledged", Boolean, nullable=False, server_default=text("true")),
+    Column(
+        "granted_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("tenant_id", "team_id", name="uq_github_app_installations_tenant_team"),
+)
+
+github_integration_credentials = Table(
+    "github_integration_credentials",
+    metadata,
+    Column("credential_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("credential_type", String(32), nullable=False),
+    Column("encrypted_payload", Text, nullable=False),
+    Column("kek_id", String(255), nullable=False),
+    Column(
+        "rotated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column("rotation_window_days", Integer, nullable=False, server_default=text("90")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint(
+        "tenant_id", "team_id", "credential_type",
+        name="uq_github_integration_credentials_tenant_team_type",
+    ),
+)
+
+pat_opt_ins = Table(
+    "pat_opt_ins",
+    metadata,
+    Column("opt_in_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("approver_actor", String(255), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("allowed_scopes", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column(
+        "expires_at",
+        DateTime(timezone=True),
+        nullable=False,
+    ),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+branch_protection_verifications = Table(
+    "branch_protection_verifications",
+    metadata,
+    Column("verification_id", String(64), primary_key=True),
+    Column("run_id", String(64), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("repo_full_name", String(512), nullable=False),
+    Column("branch", String(255), nullable=False),
+    Column("shadow_mode", Boolean, nullable=False, server_default=text("true")),
+    Column("passed", Boolean, nullable=False),
+    Column("missing_protections", JSONB, nullable=False, server_default=text("'[]'::jsonb")),
+    Column("evidence_summary", Text, nullable=False),
+    Column(
+        "verified_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+predictions = Table(
+    "predictions",
+    metadata,
+    Column("prediction_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False, server_default=text("'unknown'")),
+    Column("payload", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+knowledge_documents = Table(
+    "knowledge_documents",
+    metadata,
+    Column("document_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("repo_id", String(255), nullable=True),
+    Column("title", String(512), nullable=False),
+    Column("source_type", String(64), nullable=False),
+    Column("source_uri", Text, nullable=False),
+    Column("source_version", String(255), nullable=True),
+    Column("content_sha256", String(64), nullable=False),
+    Column("metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("active", Boolean, nullable=False, server_default=text("true")),
+    Column("created_by", String(255), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("tenant_id", "source_uri", "content_sha256", name="uq_knowledge_documents_source_hash"),
+)
+
+knowledge_ingestion_jobs = Table(
+    "knowledge_ingestion_jobs",
+    metadata,
+    Column("job_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column(
+        "document_id",
+        String(64),
+        ForeignKey("knowledge_documents.document_id", ondelete="SET NULL"),
+        nullable=True,
+    ),
+    Column("source_uri", Text, nullable=False),
+    Column("status", String(32), nullable=False),
+    Column("embedding_model", String(255), nullable=False),
+    Column("embedding_dims", Integer, nullable=False, server_default=text("1536")),
+    Column("total_chunks", Integer, nullable=False, server_default=text("0")),
+    Column("processed_chunks", Integer, nullable=False, server_default=text("0")),
+    Column("error_message", Text, nullable=True),
+    Column("created_by", String(255), nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column("started_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+)
+
+knowledge_chunks = Table(
+    "knowledge_chunks",
+    metadata,
+    Column("chunk_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column(
+        "document_id",
+        String(64),
+        ForeignKey("knowledge_documents.document_id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("chunk_index", Integer, nullable=False),
+    Column("source_type", String(64), nullable=False),
+    Column("content", Text, nullable=False),
+    Column("content_sha256", String(64), nullable=False),
+    Column("embedding_model", String(255), nullable=False),
+    Column("embedding_dims", Integer, nullable=False, server_default=text("1536")),
+    Column("embedding", Vector(1536), nullable=False),
+    Column("metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("tenant_id", "document_id", "chunk_index", name="uq_knowledge_chunks_tenant_document_index"),
+)
+
+admission_exceptions = Table(
+    "admission_exceptions",
+    metadata,
+    Column("exception_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("team_id", String(128), nullable=False),
+    Column("policy_name", String(255), nullable=False),
+    Column("image_reference", String(512), nullable=False),
+    Column("rationale", Text, nullable=False),
+    Column("approved_by", String(255), nullable=False),
+    Column("second_approver", String(255), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("revoked_at", DateTime(timezone=True), nullable=True),
+    Column("revoked_by", String(255), nullable=True),
+    Column("revoke_reason", Text, nullable=True),
+    Column(
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+price_rate_cards = Table(
+    "price_rate_cards",
+    metadata,
+    Column("rate_card_id", String(64), primary_key=True),
+    Column("provider", String(128), nullable=False),
+    Column("model", String(255), nullable=False),
+    Column("unit", String(32), nullable=False, server_default=text("'per_1k_tokens'")),
+    Column("rate_usd", Numeric(14, 6), nullable=False),
+    Column("effective_from", DateTime(timezone=True), nullable=False),
+    Column("effective_to", DateTime(timezone=True), nullable=True),
+    Column("version", Integer, nullable=False, server_default=text("1")),
+    Column("status", String(32), nullable=False, server_default=text("'draft'")),
+    Column("created_by", String(255), nullable=False),
+    Column("activated_by", String(255), nullable=True),
+    Column("activated_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default=text("'{}'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+reconciliation_reports = Table(
+    "reconciliation_reports",
+    metadata,
+    Column("report_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("period_start", DateTime(timezone=True), nullable=False),
+    Column("period_end", DateTime(timezone=True), nullable=False),
+    Column("provider", String(128), nullable=False),
+    Column("metered_total_usd", Numeric(14, 6), nullable=False),
+    Column("provider_reported_total_usd", Numeric(14, 6), nullable=False),
+    Column("drift_amount_usd", Numeric(14, 6), nullable=False),
+    Column("drift_percentage", Numeric(8, 4), nullable=False),
+    Column("missing_provider_request_ids", Integer, nullable=False, server_default=text("0")),
+    Column("matched_usage_count", Integer, nullable=False, server_default=text("0")),
+    Column("unmatched_usage_count", Integer, nullable=False, server_default=text("0")),
+    Column("mode", String(32), nullable=False, server_default=text("'dry_run'")),
+    Column(
+        "usage_ids",
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    ),
+    Column(
+        "rollup_ids",
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+    ),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+tenant_delete_events = Table(
+    "tenant_delete_events",
+    metadata,
+    Column("event_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("requested_by", String(255), nullable=False),
+    Column("reason", Text, nullable=False),
+    Column("approved_by_first", String(255), nullable=True),
+    Column("approved_by_second", String(255), nullable=True),
+    Column("approved_at", DateTime(timezone=True), nullable=True),
+    Column("status", String(32), nullable=False, server_default=text("'pending'")),
+    Column("deletion_counts", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+dpa_versions = Table(
+    "dpa_versions",
+    metadata,
+    Column("version", String(32), primary_key=True),
+    Column("published_at", DateTime(timezone=True), nullable=False),
+    Column("content_hash", String(64), nullable=False),
+    Column("summary", Text, nullable=False),
+    Column("published_by", String(255), nullable=False),
+    Column("grace_period_days", Integer, nullable=False, server_default=text("30")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+dpa_acknowledgements = Table(
+    "dpa_acknowledgements",
+    metadata,
+    Column("ack_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("dpa_version", String(32), nullable=False),
+    Column("acknowledged_by", String(255), nullable=False),
+    Column(
+        "acknowledged_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("tenant_id", "dpa_version", name="uq_dpa_ack_tenant_version"),
+)
+
+retention_policies = Table(
+    "retention_policies",
+    metadata,
+    Column("policy_id", String(64), primary_key=True),
+    Column("surface", String(64), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("retention_days", Integer, nullable=False),
+    Column("enabled", Boolean, nullable=False, server_default=text("true")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    UniqueConstraint("surface", "tenant_id", name="uq_retention_surface_tenant"),
+)
+
+retention_runs = Table(
+    "retention_runs",
+    metadata,
+    Column("run_id", String(64), primary_key=True),
+    Column("surface", String(64), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("rows_affected", Integer, nullable=False, server_default=text("0")),
+    Column("partitions_dropped", Integer, nullable=False, server_default=text("0")),
+    Column("duration_ms", Integer, nullable=False, server_default=text("0")),
+    Column("status", String(32), nullable=False, server_default=text("'success'")),
+    Column("error_message", Text, nullable=True),
+    Column("mode", String(32), nullable=False, server_default=text("'enforce'")),
+    Column(
+        "started_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "completed_at",
+        DateTime(timezone=True),
+        nullable=True,
+    ),
+)
+
+# ====== Oracle APEX Integration Tables ======
+
+apex_connections = Table(
+    "apex_connections",
+    metadata,
+    Column("connection_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("payload", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+apex_sync_jobs = Table(
+    "apex_sync_jobs",
+    metadata,
+    Column("job_id", String(64), primary_key=True),
+    Column("connection_id", String(64), nullable=False),
+    Column("tenant_id", String(128), nullable=False),
+    Column("payload", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+apex_writeback_audits = Table(
+    "apex_writeback_audits",
+    metadata,
+    Column("audit_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("payload", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
+
+apex_field_records = Table(
+    "apex_field_records",
+    metadata,
+    Column("record_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("crop", String(128), nullable=False),
+    Column("region", String(128), nullable=False),
+    Column("features", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("checksum", String(64), nullable=False, server_default=text("''")),
+    Column(
+        "ingested_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+    Column("sync_job_id", String(64), nullable=True),
+)
+
+apex_quarantined_records = Table(
+    "apex_quarantined_records",
+    metadata,
+    Column("quarantine_id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("sync_job_id", String(64), nullable=False),
+    Column("payload", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+    Column("reason", Text, nullable=False),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    ),
+)
