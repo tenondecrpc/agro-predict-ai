@@ -23,4 +23,14 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.worker.hpa.targetMemoryUtilization }}
+    - type: External
+      external:
+        metric:
+          name: arq_queue_depth
+          selector:
+            matchLabels:
+              queue: ticket-runs
+        target:
+          type: AverageValue
+          averageValue: "{{ .Values.worker.hpa.queueDepthTarget }}"
 {{- end }}

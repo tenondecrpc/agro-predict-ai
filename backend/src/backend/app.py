@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -14,7 +15,9 @@ from .compliance.dpa_gate import DpaGateMiddleware
 from .credentials import build_credential_rotation_router
 from .data_ingestion.api import build_data_router
 from .data_ingestion.service import IngestionService
+from .integrations.oracle_apex.adapter import build_adapter_from_connection
 from .integrations.oracle_apex.api import build_apex_router
+from .integrations.oracle_apex.repository import PostgresAPEXRepository
 from .integrations.oracle_apex.service import APEXService
 from .knowledge import (
     InternalRagSettings,
@@ -117,6 +120,13 @@ def create_app(
         agent_exec_repo = InMemoryAgentExecutionRepository()
 
     if prediction_service is None:
+        if apex_service is None and adapters.database.configured:
+            apex_service = APEXService(
+                repository=PostgresAPEXRepository(
+                    database_url=adapters.database.settings.sync_url(),
+                ),
+                adapter_factory=build_adapter_from_connection,
+            )
         prediction_repository = adapters.prediction_repository
         if prediction_repository is None:
             from .persistence.factory import build_prediction_repository
@@ -137,10 +147,17 @@ def create_app(
     @system_router.get("/healthz")
     def healthz(response: Response) -> dict[str, object]:
         probe = adapters.health.liveness()
-        response.status_code = 200 if probe.status == "ok" else 503
+        worker_status = _worker_health_snapshot(adapters)
+        status = probe.status
+        reasons = list(probe.reasons)
+        if worker_status["queue_depth"] > worker_status["queue_depth_degraded_threshold"]:
+            status = "degraded"
+            reasons.append("worker_queue_backlog")
+        response.status_code = 200 if status == "ok" else 503
         return {
-            "status": probe.status,
-            "reasons": probe.reasons,
+            "status": status,
+            "reasons": reasons,
+            "worker": worker_status,
             "persistence": adapters.health.snapshot().model_dump(mode="json"),
         }
 
@@ -237,6 +254,29 @@ def create_app(
             database_url=adapters.database.settings.sync_url(),
         )
     return app
+
+
+def _worker_health_snapshot(adapters: PersistenceAdapters) -> dict[str, int]:
+    threshold = int(os.getenv("BACKEND_WORKER_QUEUE_DEPTH_DEGRADED_THRESHOLD", "100"))
+    active_jobs = 0
+    queue_depth = 0
+    controller = adapters.worker_controller
+    try:
+        active_jobs = len(getattr(controller, "active_jobs", {}))
+        if active_jobs == 0:
+            active_jobs = len(getattr(controller, "_local_active_jobs", {}))
+    except Exception:
+        active_jobs = 0
+    try:
+        if hasattr(controller, "queued_jobs"):
+            queue_depth = len(controller.queued_jobs())
+    except Exception:
+        queue_depth = 0
+    return {
+        "active_job_count": active_jobs,
+        "queue_depth": queue_depth,
+        "queue_depth_degraded_threshold": threshold,
+    }
 
 
 app = create_app()

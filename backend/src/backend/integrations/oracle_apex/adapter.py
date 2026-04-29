@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
+
+from backend.integrations.oracle_apex.credentials import CredentialResolver, make_credential_resolver
+from backend.integrations.oracle_apex.models import OracleAPEXConnection
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +44,11 @@ class OracleSQLAdapter:
         pool_min: int = 2,
         pool_max: int = 10,
         pool_increment: int = 1,
+        batch_size: int = 1000,
     ) -> None:
         import oracledb
+
+        self._batch_size = batch_size
         self._pool = oracledb.create_pool(
             dsn=dsn,
             user=user,
@@ -51,6 +58,25 @@ class OracleSQLAdapter:
             increment=pool_increment,
         )
         self._logger = logging.getLogger(__name__)
+
+    @classmethod
+    def from_credentials_ref(
+        cls,
+        credentials_ref: str,
+        *,
+        resolver: CredentialResolver | None = None,
+        batch_size: int = 1000,
+    ) -> OracleSQLAdapter:
+        credentials = (resolver or make_credential_resolver()).resolve(credentials_ref)
+        dsn = credentials.get("dsn")
+        if not dsn:
+            raise ValueError(f"Oracle SQL credentials for '{credentials_ref}' must include dsn.")
+        return cls(
+            dsn=dsn,
+            user=credentials["user"],
+            password=credentials["password"],
+            batch_size=batch_size,
+        )
 
     def fetch_data(
         self,
@@ -63,7 +89,13 @@ class OracleSQLAdapter:
             try:
                 cursor.execute(query, params or {})
                 columns = [col[0].lower() for col in cursor.description] if cursor.description else []
-                return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+                rows: list[dict[str, Any]] = []
+                while True:
+                    batch = cursor.fetchmany(self._batch_size)
+                    if not batch:
+                        break
+                    rows.extend(dict(zip(columns, row, strict=True)) for row in batch)
+                return rows
             finally:
                 cursor.close()
 
@@ -73,17 +105,49 @@ class OracleSQLAdapter:
         data: dict[str, Any],
         approved_by: str,
     ) -> dict[str, Any]:
-        """Insert data into the specified table."""
-        columns = list(data.keys())
-        placeholders = [f":{col}" for col in columns]
-        sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+        """Insert or update data in the specified Oracle table.
+
+        By default this inserts all keys in ``data``. To update, pass
+        ``{"_operation": "update", "_where": {"id": "..."}, ...}``.
+        """
+        table_name = _validate_sql_identifier(table)
+        operation = str(data.get("_operation", "insert")).lower()
+        values = {key: value for key, value in data.items() if key not in {"_operation", "_where"}}
+        if not values:
+            raise ValueError("write_data requires at least one data column.")
+
+        if operation == "update":
+            raw_where = data.get("_where")
+            if not isinstance(raw_where, dict) or not raw_where:
+                raise ValueError("UPDATE write_data requires a non-empty _where mapping.")
+            columns = [_validate_sql_identifier(column) for column in values]
+            where_columns = [_validate_sql_identifier(column) for column in raw_where]
+            set_clause = ", ".join(f"{column} = :set_{column}" for column in columns)
+            where_clause = " AND ".join(f"{column} = :where_{column}" for column in where_columns)
+            sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
+            bind_values = {
+                **{f"set_{key}": value for key, value in values.items()},
+                **{f"where_{key}": value for key, value in raw_where.items()},
+            }
+        elif operation == "insert":
+            columns = [_validate_sql_identifier(column) for column in values]
+            placeholders = [f":{column}" for column in columns]
+            sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+            bind_values = values
+        else:
+            raise ValueError("write_data _operation must be 'insert' or 'update'.")
 
         with self._pool.acquire() as conn:
             cursor = conn.cursor()
             try:
-                cursor.execute(sql, data)
+                cursor.execute(sql, bind_values)
                 conn.commit()
-                return {"rows_affected": cursor.rowcount, "table": table}
+                return {
+                    "rows_affected": cursor.rowcount,
+                    "table": table,
+                    "operation": operation,
+                    "approved_by": approved_by,
+                }
             finally:
                 cursor.close()
 
@@ -125,6 +189,24 @@ class OracleRESTAdapter:
             timeout=timeout,
         )
         self._logger = logging.getLogger(__name__)
+
+    @classmethod
+    def from_credentials_ref(
+        cls,
+        credentials_ref: str,
+        *,
+        base_url: str | None = None,
+        resolver: CredentialResolver | None = None,
+    ) -> OracleRESTAdapter:
+        credentials = (resolver or make_credential_resolver()).resolve(credentials_ref)
+        resolved_base_url = base_url or credentials.get("base_url")
+        if not resolved_base_url:
+            raise ValueError(f"Oracle REST credentials for '{credentials_ref}' must include base_url.")
+        return cls(
+            base_url=resolved_base_url,
+            username=credentials["user"],
+            password=credentials["password"],
+        )
 
     def fetch_data(
         self,
@@ -169,3 +251,36 @@ class OracleRESTAdapter:
     def close(self) -> None:
         """Close the HTTP client."""
         self._client.close()
+
+
+def build_adapter_from_connection(
+    connection: OracleAPEXConnection,
+    *,
+    resolver: CredentialResolver | None = None,
+    batch_size: int = 1000,
+) -> OracleAPEXAdapter:
+    credentials = (resolver or make_credential_resolver()).resolve(connection.credentials_ref)
+    if connection.endpoint.startswith(("http://", "https://")) or "base_url" in credentials:
+        return OracleRESTAdapter(
+            base_url=credentials.get("base_url", connection.endpoint),
+            username=credentials["user"],
+            password=credentials["password"],
+        )
+    dsn = credentials.get("dsn")
+    if not dsn:
+        raise ValueError(f"Oracle SQL credentials for '{connection.credentials_ref}' must include dsn.")
+    return OracleSQLAdapter(
+        dsn=dsn,
+        user=credentials["user"],
+        password=credentials["password"],
+        batch_size=batch_size,
+    )
+
+
+_SQL_IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_$#]*(?:\.[A-Za-z][A-Za-z0-9_$#]*)?$")
+
+
+def _validate_sql_identifier(identifier: str) -> str:
+    if not _SQL_IDENTIFIER.match(identifier):
+        raise ValueError(f"Unsafe Oracle SQL identifier: {identifier}")
+    return identifier

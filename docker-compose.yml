@@ -89,6 +89,7 @@ services:
       - BACKEND_WEBHOOK_SHARED_SECRET=${BACKEND_WEBHOOK_SHARED_SECRET:-}
       - BACKEND_WORKER_CONTROLLER_MODE=redis
       - BACKEND_WORKER_JOB_TIMEOUT_SECONDS=300
+      - BACKEND_WORKER_QUEUE_NAME=ticket-runs
     depends_on:
       postgres:
         condition: service_healthy

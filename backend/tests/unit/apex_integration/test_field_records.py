@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from backend.integrations.oracle_apex.models import APEXFieldRecord, CircuitBreakerState, WriteBackRequest
 from backend.integrations.oracle_apex.repository import InMemoryAPEXRepository
 from backend.integrations.oracle_apex.service import APEXService
 from backend.predictions.field_data_resolver import FieldDataResolver, NoInputDataError

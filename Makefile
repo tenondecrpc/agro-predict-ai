@@ -2,7 +2,7 @@
         minikube-status minikube-logs minikube-wait minikube-urls port-forward smoke-test \
         check-prereqs generate-fernet-key dev-backend dev-frontend help \
         local-up local-down local-logs local-status \
-        dev-worker local-worker-up local-worker-down local-worker-logs
+        dev-worker local-worker-up local-worker-down local-worker-logs apex-up
 
 # ---------------------------------------------------------------------------
 # Help
@@ -23,8 +23,8 @@ help:
 	@echo "    make smoke-test           Run health check and simulate workflow"
 	@echo ""
 	@echo "  Local dev (no Minikube):"
-	@echo "    make local-up             Start PostgreSQL + Redis via Docker Compose"
-	@echo "    make local-down           Stop and remove PostgreSQL + Redis volumes"
+	@echo "    make local-up             Start PostgreSQL + Redis + worker via Docker Compose"
+	@echo "    make local-down           Stop and remove PostgreSQL + Redis + worker volumes"
 	@echo "    make local-logs           Tail Docker Compose service logs"
 	@echo "    make local-status         Show running Docker Compose containers"
 	@echo "    make dev-backend          Run backend locally with uv (auto-wires local DB/Redis)"
@@ -35,6 +35,7 @@ help:
 	@echo "    make local-worker-up      Start ARQ worker via Docker Compose"
 	@echo "    make local-worker-down    Stop ARQ worker container"
 	@echo "    make local-worker-logs    Tail ARQ worker logs"
+	@echo "    make apex-up              Start optional Oracle XE service"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "    make check-prereqs        Verify all required tools are installed"
@@ -154,19 +155,22 @@ smoke-test:
 # Local dependencies (Docker Compose)
 # ---------------------------------------------------------------------------
 local-up:
-	@echo "Starting local PostgreSQL and Redis..."
-	docker compose up -d
+	@echo "Starting local PostgreSQL, Redis, and ARQ worker..."
+	@FERNET_KEY=$$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"); \
+	WEBHOOK_SECRET=$$(python3 -c "import secrets; print(secrets.token_urlsafe(32))"); \
+	BACKEND_ENCRYPTION_ACTIVE_WRAPPING_KEY=$$FERNET_KEY \
+	BACKEND_WEBHOOK_SHARED_SECRET=$$WEBHOOK_SECRET \
+	docker compose --profile worker up -d
 	@echo "Waiting for services to be healthy..."
 	@docker compose ps
 	@echo ""
-	@echo "Infrastructure base is ready:"
+	@echo "Infrastructure base and worker are ready:"
 	@echo "  PostgreSQL: postgresql://dev:dev@localhost:5432/agropredict"
 	@echo "  Redis:      redis://localhost:6379/0"
 	@echo ""
 	@echo "NOTE: This covers persistence and queues only."
 	@echo "For a full end-to-end pipeline you also need:"
 	@echo "  - LLM Provider (OpenAI, Anthropic, Ollama, or OpenCode-Go)"
-	@echo "  - ARQ Worker (for async webhook processing)"
 	@echo "  - GitHub Integration (for PR creation)"
 	@echo "See README.md -> 'Integraciones necesarias para un flujo completo'"
 	@echo ""
@@ -175,7 +179,7 @@ local-up:
 	@echo "  make dev-frontend  # terminal 2"
 
 local-down:
-	@echo "Stopping local PostgreSQL and Redis..."
+	@echo "Stopping local PostgreSQL, Redis, and worker..."
 	docker compose down -v
 
 local-logs:
@@ -248,3 +252,7 @@ local-worker-down:
 
 local-worker-logs:
 	docker compose --profile worker logs -f worker
+
+apex-up:
+	@echo "Starting optional Oracle XE service..."
+	docker compose --profile oracle up -d oracle-xe

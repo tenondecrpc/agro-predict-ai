@@ -19,6 +19,11 @@ class QueuedJob(BaseModel):
     enqueued_at: int
     retry_count: int = 0
     checkpoint_ref: str | None = None
+    crop: str = "unknown"
+    region: str = "unknown"
+    time_horizon_days: int = 30
+    input_data: dict[str, object] = Field(default_factory=dict)
+    model_version: str = "v1.2.0"
 
 
 class WorkerDrainLease(BaseModel):

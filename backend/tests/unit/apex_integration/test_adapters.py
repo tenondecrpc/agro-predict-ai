@@ -51,9 +51,12 @@ class TestOracleSQLAdapter:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.description = [("id",), ("name",), ("value",)]
-        mock_cursor.fetchall.return_value = [
+        mock_cursor.fetchmany.side_effect = [
+            [
             (1, "temperature", 22.5),
             (2, "humidity", 65.0),
+            ],
+            [],
         ]
         mock_pool.acquire.return_value.__enter__ = MagicMock(return_value=mock_conn)
         mock_pool.acquire.return_value.__exit__ = MagicMock(return_value=False)
@@ -80,7 +83,7 @@ class TestOracleSQLAdapter:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.description = [("id",), ("crop",)]
-        mock_cursor.fetchall.return_value = [(1, "corn")]
+        mock_cursor.fetchmany.side_effect = [[(1, "corn")], []]
         mock_pool.acquire.return_value.__enter__ = MagicMock(return_value=mock_conn)
         mock_pool.acquire.return_value.__exit__ = MagicMock(return_value=False)
         mock_conn.cursor.return_value = mock_cursor

@@ -18,6 +18,7 @@ class OracleAPEXConnection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     connection_id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     endpoint: str
     credentials_ref: str
     sync_schedule: str = "0 * * * *"  # cron expression
@@ -82,6 +83,7 @@ class WriteBackAudit(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     audit_id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     prediction_id: str
     oracle_apex_table: str
     data_written: dict[str, object]

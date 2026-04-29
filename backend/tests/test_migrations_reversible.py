@@ -12,6 +12,15 @@ from psycopg.types.json import Jsonb
 from sqlalchemy.engine import make_url
 
 from alembic import command
+from backend.integrations.oracle_apex.models import (
+    APEXFieldRecord,
+    OracleAPEXConnection,
+    SyncJob,
+    WriteBackAudit,
+    WriteBackRequest,
+)
+from backend.integrations.oracle_apex.repository import PostgresAPEXRepository
+from backend.integrations.oracle_apex.service import APEXService
 from backend.persistence import MigrationRunner, build_alembic_config, get_current_revision, get_head_revision
 from backend.persistence.db import DatabaseSettings, make_sync_database_url
 
@@ -102,6 +111,11 @@ def test_alembic_upgrade_downgrade_round_trip_restores_seeded_rows(temporary_pos
             """
         ).fetchall()
     assert [row["policyname"] for row in policies] == [
+        "apex_connections_tenant_scope",
+        "apex_field_records_tenant_scope",
+        "apex_quarantined_records_tenant_scope",
+        "apex_sync_jobs_tenant_scope",
+        "apex_writeback_audits_tenant_scope",
         "budget_cap_snapshots_tenant_scope",
         "budget_charges_tenant_scope",
         "budget_denials_tenant_scope",
@@ -128,6 +142,94 @@ def test_alembic_upgrade_downgrade_round_trip_restores_seeded_rows(temporary_pos
         seeded_rows=seeded_rows,
     )
     assert restored_rows == seeded_rows
+
+
+def test_postgres_apex_repository_persists_tenant_scoped_records(temporary_postgres: str) -> None:
+    command.upgrade(build_alembic_config(temporary_postgres), "head")
+    repository = PostgresAPEXRepository(temporary_postgres)
+
+    connection = repository.save_connection(
+        OracleAPEXConnection(
+            tenant_id="tenant-alpha",
+            endpoint="SELECT * FROM FIELD_DATA",
+            credentials_ref="vault://apex/creds",
+        )
+    )
+    assert repository.get_connection(connection.connection_id, tenant_id="tenant-alpha") == connection
+    assert repository.get_connection(connection.connection_id, tenant_id="tenant-beta") is None
+
+    job = SyncJob(connection_id=connection.connection_id, tenant_id="tenant-alpha")
+    job.complete(ingested=2, validated=1, quarantined=1)
+    repository.save_sync_job(job)
+    assert repository.get_sync_job(job.job_id, tenant_id="tenant-alpha") == job
+
+    audit = WriteBackAudit(
+        tenant_id="tenant-alpha",
+        prediction_id="prediction-1",
+        oracle_apex_table="PREDICTIONS",
+        data_written={"yield": 8.5},
+        approved_by="operator@example.com",
+        approved_at=job.end_time,
+    )
+    audit.mark_completed()
+    repository.save_writeback_audit(audit)
+    assert repository.get_writeback_audit(audit.audit_id, tenant_id="tenant-alpha") == audit
+    assert repository.list_writeback_audits("tenant-alpha") == [audit]
+    assert repository.list_writeback_audits("tenant-beta") == []
+
+    field_record = APEXFieldRecord(
+        tenant_id="tenant-alpha",
+        crop="corn",
+        region="north",
+        features={"temperature": 22.5},
+        checksum="checksum-1",
+        sync_job_id=job.job_id,
+    )
+    repository.save_field_record(field_record)
+    latest = repository.get_latest_field_record("tenant-alpha", crop="corn", region="north")
+    assert latest == field_record
+
+
+def test_apex_sync_and_writeback_flow_persists_to_postgres(temporary_postgres: str) -> None:
+    command.upgrade(build_alembic_config(temporary_postgres), "head")
+    repository = PostgresAPEXRepository(temporary_postgres)
+    adapter = _FakeAPEXAdapter()
+    service = APEXService(repository=repository, adapter=adapter)
+    connection = service.create_connection(
+        "SELECT * FROM FIELD_DATA",
+        "vault://apex/creds",
+        tenant_id="tenant-alpha",
+    )
+
+    job = service.sync_data(
+        connection.connection_id,
+        "tenant-alpha",
+        crop="corn",
+        region="north",
+    )
+
+    assert job.status == "completed"
+    assert job.records_ingested == 2
+    assert job.records_validated == 1
+    latest = repository.get_latest_field_record("tenant-alpha", crop="corn", region="north")
+    assert latest is not None
+    assert latest.features["temperature"] == 22.5
+
+    audit = service.write_back(
+        WriteBackRequest(
+            prediction_id="prediction-1",
+            oracle_apex_table="PREDICTIONS",
+            data_written={"yield": 8.5},
+            approved_by="operator@example.com",
+        ),
+        tenant_id="tenant-alpha",
+    )
+
+    assert audit.status == "completed"
+    assert repository.list_writeback_audits("tenant-alpha") == [audit]
+    assert adapter.writes == [
+        ("PREDICTIONS", {"yield": 8.5}, "operator@example.com"),
+    ]
 
 
 def test_internal_rag_pgvector_migration_round_trip(temporary_postgres: str) -> None:
@@ -1140,6 +1242,29 @@ def _seed_rows(
         "audit_event": dict(fetched_audit_event),
         "dead_letter": dict(fetched_dead_letter),
     }
+
+
+class _FakeAPEXAdapter:
+    def __init__(self) -> None:
+        self.writes: list[tuple[str, dict[str, object], str]] = []
+
+    def fetch_data(self, query: str, params: dict[str, object] | None = None) -> list[dict[str, object]]:
+        return [
+            {"valid": True, "crop": "corn", "region": "north", "temperature": 22.5},
+            {"valid": False, "crop": "corn", "region": "north", "temperature": None},
+        ]
+
+    def write_data(
+        self,
+        table: str,
+        data: dict[str, object],
+        approved_by: str,
+    ) -> dict[str, object]:
+        self.writes.append((table, data, approved_by))
+        return {"rows_affected": 1}
+
+    def health_check(self) -> bool:
+        return True
 
 
 def _connect(database_url: str) -> psycopg.Connection:

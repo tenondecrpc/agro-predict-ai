@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from typing import Any
 from uuid import uuid4
 
@@ -25,9 +26,11 @@ class APEXService:
         *,
         repository: APEXRepository,
         adapter: OracleAPEXAdapter | None = None,
+        adapter_factory: Callable[[OracleAPEXConnection], OracleAPEXAdapter] | None = None,
     ) -> None:
         self.repository = repository
         self.adapter = adapter
+        self.adapter_factory = adapter_factory
 
     def create_connection(
         self,
@@ -38,17 +41,16 @@ class APEXService:
         sync_schedule: str = "0 * * * *",
     ) -> OracleAPEXConnection:
         conn = OracleAPEXConnection(
+            tenant_id=tenant_id,
             endpoint=endpoint,
             credentials_ref=credentials_ref,
             sync_schedule=sync_schedule,
         )
-        # Store tenant_id in the payload for the repository
-        conn.model_dump()["tenant_id"] = tenant_id
         self.repository.save_connection(conn)
         return conn
 
-    def get_connection(self, connection_id: str) -> OracleAPEXConnection | None:
-        return self.repository.get_connection(connection_id)
+    def get_connection(self, connection_id: str, *, tenant_id: str | None = None) -> OracleAPEXConnection | None:
+        return self.repository.get_connection(connection_id, tenant_id=tenant_id)
 
     def sync_data(
         self,
@@ -59,7 +61,7 @@ class APEXService:
         crop: str = "unknown",
         region: str = "unknown",
     ) -> SyncJob:
-        conn = self.repository.get_connection(connection_id)
+        conn = self.repository.get_connection(connection_id, tenant_id=tenant_id)
         if conn is None:
             raise ValueError("Connection not found")
 
@@ -71,9 +73,9 @@ class APEXService:
             return job
 
         try:
-            if self.adapter is not None:
-                # Real data fetch via adapter
-                records = self.adapter.fetch_data(conn.endpoint)
+            adapter = self._adapter_for(conn)
+            if adapter is not None:
+                records = adapter.fetch_data(conn.endpoint)
             else:
                 # Fallback to simulated data (dev mode)
                 records = sample_data or []
@@ -122,6 +124,7 @@ class APEXService:
             raise ValueError("Write-back requires explicit operator approval")
 
         audit = WriteBackAudit(
+            tenant_id=tenant_id,
             prediction_id=request.prediction_id,
             oracle_apex_table=request.oracle_apex_table,
             data_written=request.data_written,
@@ -131,7 +134,6 @@ class APEXService:
 
         try:
             if self.adapter is not None:
-                # Real write-back via adapter
                 self.adapter.write_data(
                     request.oracle_apex_table,
                     request.data_written,
@@ -146,8 +148,8 @@ class APEXService:
         self.repository.save_writeback_audit(audit)
         return audit
 
-    def get_circuit_state(self, connection_id: str) -> dict[str, Any]:
-        conn = self.repository.get_connection(connection_id)
+    def get_circuit_state(self, connection_id: str, *, tenant_id: str | None = None) -> dict[str, Any]:
+        conn = self.repository.get_connection(connection_id, tenant_id=tenant_id)
         if conn is None:
             raise ValueError("Connection not found")
         return {
@@ -171,3 +173,10 @@ class APEXService:
     ) -> APEXFieldRecord | None:
         """Look up the most recent field record for a tenant/crop/region."""
         return self.repository.get_latest_field_record(tenant_id, crop=crop, region=region)
+
+    def _adapter_for(self, connection: OracleAPEXConnection) -> OracleAPEXAdapter | None:
+        if self.adapter is not None:
+            return self.adapter
+        if self.adapter_factory is not None:
+            return self.adapter_factory(connection)
+        return None

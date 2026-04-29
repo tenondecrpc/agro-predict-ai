@@ -62,7 +62,7 @@ class RedisLike(Protocol):
 class WorkerControllerSettings(BaseModel):
     mode: Literal["legacy", "redis"] = "legacy"
     queue_name: str = "ticket-runs"
-    arq_function_name: str = "process_ticket_run"
+    arq_function_name: str = "process_prediction_run"
     drain_lease_ttl_seconds: int = 300
     per_tenant_concurrency: int = 2
     starvation_threshold_seconds: int = 300
@@ -77,7 +77,7 @@ class WorkerControllerSettings(BaseModel):
         return cls(
             mode=mode,  # type: ignore[arg-type]
             queue_name=os.getenv(WORKER_QUEUE_NAME_ENV_KEY, "ticket-runs"),
-            arq_function_name=os.getenv(WORKER_ARQ_FUNCTION_ENV_KEY, "process_ticket_run"),
+            arq_function_name=os.getenv(WORKER_ARQ_FUNCTION_ENV_KEY, "process_prediction_run"),
             drain_lease_ttl_seconds=int(os.getenv(WORKER_DRAIN_LEASE_TTL_ENV_KEY, "300")),
             per_tenant_concurrency=int(os.getenv(WORKER_PER_TENANT_CONCURRENCY_ENV_KEY, "2")),
             starvation_threshold_seconds=int(os.getenv(WORKER_STARVATION_THRESHOLD_ENV_KEY, "300")),
@@ -116,6 +116,11 @@ class ArqQueueTransport:
                 enqueued_at=job.enqueued_at,
                 retry_count=job.retry_count,
                 checkpoint_ref=job.checkpoint_ref,
+                crop=job.crop,
+                region=job.region,
+                time_horizon_days=job.time_horizon_days,
+                input_data=job.input_data,
+                model_version=job.model_version,
             )
         finally:
             await pool.close(close_connection_pool=True)
@@ -143,6 +148,11 @@ class ArqQueueTransport:
                 enqueued_at=int(job.kwargs["enqueued_at"]),
                 retry_count=int(job.kwargs.get("retry_count", 0)),
                 checkpoint_ref=job.kwargs.get("checkpoint_ref"),
+                crop=str(job.kwargs.get("crop", "unknown")),
+                region=str(job.kwargs.get("region", "unknown")),
+                time_horizon_days=int(job.kwargs.get("time_horizon_days", 30)),
+                input_data=dict(job.kwargs.get("input_data") or {}),
+                model_version=str(job.kwargs.get("model_version", "v1.2.0")),
             )
             for job in jobs
             if job.job_id is not None

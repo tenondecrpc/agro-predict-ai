@@ -24,6 +24,13 @@ def upgrade() -> None:
         "apex_connections",
         sa.Column("connection_id", sa.String(length=64), primary_key=True),
         sa.Column("tenant_id", sa.String(length=128), nullable=False),
+        sa.Column("endpoint", sa.Text(), nullable=False),
+        sa.Column("credentials_ref", sa.Text(), nullable=False),
+        sa.Column("sync_schedule", sa.String(length=128), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False, server_default="active"),
+        sa.Column("circuit_breaker_state", sa.String(length=32), nullable=False, server_default="closed"),
+        sa.Column("failure_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("last_failure_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "payload",
             JSONB,
@@ -52,8 +59,15 @@ def upgrade() -> None:
     op.create_table(
         "apex_sync_jobs",
         sa.Column("job_id", sa.String(length=64), primary_key=True),
-        sa.Column("connection_id", sa.String(length=64), nullable=False),
         sa.Column("tenant_id", sa.String(length=128), nullable=False),
+        sa.Column("connection_id", sa.String(length=64), nullable=False),
+        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("end_time", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("records_ingested", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("records_validated", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("records_quarantined", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "payload",
             JSONB,
@@ -77,6 +91,18 @@ def upgrade() -> None:
         "apex_writeback_audits",
         sa.Column("audit_id", sa.String(length=64), primary_key=True),
         sa.Column("tenant_id", sa.String(length=128), nullable=False),
+        sa.Column("prediction_id", sa.String(length=64), nullable=False),
+        sa.Column("oracle_apex_table", sa.String(length=255), nullable=False),
+        sa.Column(
+            "data_written",
+            JSONB,
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
+        sa.Column("approved_by", sa.String(length=255), nullable=False),
+        sa.Column("approved_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column(
             "payload",
             JSONB,
@@ -134,12 +160,12 @@ def upgrade() -> None:
         sa.Column("tenant_id", sa.String(length=128), nullable=False),
         sa.Column("sync_job_id", sa.String(length=64), nullable=False),
         sa.Column(
-            "payload",
+            "raw_data",
             JSONB,
             nullable=False,
             server_default=sa.text("'{}'::jsonb"),
         ),
-        sa.Column("reason", sa.Text(), nullable=False),
+        sa.Column("rejection_reason", sa.Text(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -153,8 +179,37 @@ def upgrade() -> None:
         ["tenant_id", "sync_job_id"],
     )
 
+    for table_name in [
+        "apex_connections",
+        "apex_sync_jobs",
+        "apex_writeback_audits",
+        "apex_field_records",
+        "apex_quarantined_records",
+    ]:
+        op.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY")
+        op.execute(f"ALTER TABLE {table_name} FORCE ROW LEVEL SECURITY")
+        op.execute(
+            f"""
+            CREATE POLICY {table_name}_tenant_scope
+            ON {table_name}
+            FOR ALL
+            USING (app.current_tenant_id() = '*' OR tenant_id = app.current_tenant_id())
+            WITH CHECK (app.current_tenant_id() = '*' OR tenant_id = app.current_tenant_id());
+            """
+        )
+
 
 def downgrade() -> None:
+    for table_name in [
+        "apex_quarantined_records",
+        "apex_field_records",
+        "apex_writeback_audits",
+        "apex_sync_jobs",
+        "apex_connections",
+    ]:
+        op.execute(f"DROP POLICY IF EXISTS {table_name}_tenant_scope ON {table_name}")
+        op.execute(f"ALTER TABLE IF EXISTS {table_name} DISABLE ROW LEVEL SECURITY")
+
     op.drop_table("apex_quarantined_records")
     op.drop_table("apex_field_records")
     op.drop_table("apex_writeback_audits")

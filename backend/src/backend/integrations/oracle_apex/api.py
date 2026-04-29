@@ -13,13 +13,19 @@ def build_apex_router(service: APEXService) -> APIRouter:
     def create_connection(
         endpoint: str,
         credentials_ref: str,
+        tenant_id: str = "default",
         sync_schedule: str = "0 * * * *",
     ) -> OracleAPEXConnection:
-        return service.create_connection(endpoint, credentials_ref, sync_schedule=sync_schedule)
+        return service.create_connection(
+            endpoint,
+            credentials_ref,
+            tenant_id=tenant_id,
+            sync_schedule=sync_schedule,
+        )
 
     @router.get("/connections/{connection_id}", response_model=OracleAPEXConnection | None)
-    def get_connection(connection_id: str) -> OracleAPEXConnection | None:
-        return service.get_connection(connection_id)
+    def get_connection(connection_id: str, tenant_id: str = "default") -> OracleAPEXConnection | None:
+        return service.get_connection(connection_id, tenant_id=tenant_id)
 
     @router.post("/sync", response_model=SyncJob)
     def sync_data(
@@ -39,9 +45,9 @@ def build_apex_router(service: APEXService) -> APIRouter:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @router.get("/circuit/{connection_id}")
-    def get_circuit_state(connection_id: str) -> dict[str, object]:
+    def get_circuit_state(connection_id: str, tenant_id: str = "default") -> dict[str, object]:
         try:
-            return service.get_circuit_state(connection_id)
+            return service.get_circuit_state(connection_id, tenant_id=tenant_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 

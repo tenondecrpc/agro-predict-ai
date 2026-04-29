@@ -5,10 +5,13 @@ import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from time import time
 from typing import Any
 
 from backend.persistence.contracts import WorkerController
 from backend.persistence.factory import PersistenceAdapters, build_persistence_adapters
+from backend.persistence.redis import build_redis_client
+from backend.platform.queue import QueuedJob
 from backend.predictions.field_data_resolver import FieldDataResolver
 from backend.predictions.graph import PredictionGraph
 from backend.predictions.models import PredictionInput
@@ -52,7 +55,10 @@ def _get_prediction_repository() -> PredictionRepository:
 
 
 def _get_job_timeout() -> int:
-    return int(os.getenv(WORKER_JOB_TIMEOUT_ENV_KEY, "300"))
+    timeout = int(os.getenv(WORKER_JOB_TIMEOUT_ENV_KEY, "300"))
+    if timeout <= 0:
+        raise ValueError(f"{WORKER_JOB_TIMEOUT_ENV_KEY} must be a positive integer")
+    return timeout
 
 
 async def on_startup(ctx: dict[str, Any]) -> None:
@@ -60,6 +66,8 @@ async def on_startup(ctx: dict[str, Any]) -> None:
     global _persistence
     _persistence = build_persistence_adapters()
     worker_id = _get_worker_id()
+    ctx["worker_id"] = worker_id
+    ctx["worker_bootstrap"] = build_worker_bootstrap(_persistence)
     logger.info("arq_worker_started", extra={"worker_id": worker_id})
 
 
@@ -68,12 +76,10 @@ async def on_shutdown(ctx: dict[str, Any]) -> None:
     import asyncio
     worker_id = _get_worker_id()
     persistence = _get_persistence()
-    drain_timeout = int(os.getenv("BACKEND_WORKER_DRAIN_TIMEOUT_SECONDS", "30"))
     try:
         persistence.worker_controller.begin_drain(worker_id)
         logger.info("arq_worker_drain_started", extra={"worker_id": worker_id})
-        # Wait for in-flight jobs to complete
-        await asyncio.sleep(drain_timeout)
+        await asyncio.sleep(0)
         logger.info("arq_worker_drain_completed", extra={"worker_id": worker_id})
     except Exception:
         logger.warning("arq_worker_drain_failed", extra={"worker_id": worker_id})
@@ -102,6 +108,8 @@ async def process_prediction_run(
     persistence = _get_persistence()
     repo = _get_prediction_repository()
     job_id = ctx.get("job_id", run_id)
+    queue_name = str(ctx.get("queue_name") or getattr(persistence.worker_controller, "queue_name", "ticket-runs"))
+    assigned = False
 
     logger.info(
         "prediction_run_started",
@@ -114,8 +122,33 @@ async def process_prediction_run(
         },
     )
 
-    # Get Redis client for job status updates (optional)
-    redis_client = getattr(persistence, "redis_client", None)
+    try:
+        persistence.worker_controller.assign(
+            worker_id,
+            QueuedJob(
+                job_id=str(job_id),
+                tenant_id=tenant_id,
+                team_id=team_id,
+                run_id=run_id,
+                queue_name=queue_name,
+                enqueued_at=int(time()),
+                retry_count=retry_count,
+                checkpoint_ref=checkpoint_ref,
+            ),
+        )
+        assigned = True
+    except Exception:
+        logger.warning(
+            "worker_controller_assign_failed",
+            extra={"worker_id": worker_id, "job_id": job_id},
+        )
+
+    redis_client = None
+    if persistence.redis.configured:
+        try:
+            redis_client = build_redis_client(persistence.redis.settings)
+        except Exception:
+            redis_client = None
 
     def _update_status(current_node: str, status: str = "running") -> None:
         if redis_client is None:
@@ -193,15 +226,17 @@ async def process_prediction_run(
                 pass
 
         # Release checkpoint
-        try:
-            persistence.worker_controller.checkpoint_and_release(worker_id, job_id)
-        except Exception:
-            logger.warning(
-                "checkpoint_release_failed",
-                extra={"worker_id": worker_id, "job_id": job_id},
-            )
-
-        # Decrement tenant concurrency counter
+        if assigned:
+            try:
+                persistence.worker_controller.checkpoint_and_release(
+                    worker_id,
+                    checkpoint_ref or output.prediction_id,
+                )
+            except Exception:
+                logger.warning(
+                    "checkpoint_release_failed",
+                    extra={"worker_id": worker_id, "job_id": job_id},
+                )
         try:
             if redis_client is not None:
                 redis_client.decr(f"tenant_concurrency:{tenant_id}")
@@ -246,25 +281,14 @@ async def process_prediction_run(
             except Exception:
                 pass
 
-        # Capture terminal failure for DLQ
-        try:
-            persistence.worker_controller.capture_terminal_failure(
-                worker_id, str(exc), job_payload={
-                    "tenant_id": tenant_id,
-                    "team_id": team_id,
-                    "crop": crop,
-                    "region": region,
-                    "time_horizon_days": time_horizon_days,
-                    "input_data": input_data or {},
-                    "model_version": model_version,
-                    "run_id": run_id,
-                }
-            )
-        except Exception:
-            logger.warning(
-                "dlq_capture_failed",
-                extra={"worker_id": worker_id, "job_id": job_id},
-            )
+        if assigned:
+            try:
+                persistence.worker_controller.capture_terminal_failure(worker_id, str(exc))
+            except Exception:
+                logger.warning(
+                    "dlq_capture_failed",
+                    extra={"worker_id": worker_id, "job_id": job_id},
+                )
 
         # Decrement tenant concurrency counter
         try:
@@ -336,9 +360,12 @@ class WorkerSettings:
     Usage: arq backend.worker.WorkerSettings
     """
 
-    functions = [process_prediction_run, process_metering_rollups, process_knowledge_ingestion]
+    from arq.connections import RedisSettings as ArqRedisSettings
+
+    functions = (process_prediction_run, process_metering_rollups, process_knowledge_ingestion)
     on_startup = on_startup
     on_shutdown = on_shutdown
-    max_jobs = 0  # 0 = unlimited
+    redis_settings = ArqRedisSettings.from_dsn(os.getenv("BACKEND_REDIS_URL", "redis://localhost:6379/0"))
+    max_jobs = int(os.getenv("BACKEND_WORKER_MAX_JOBS", "1"))
     job_timeout = _get_job_timeout()
-    queue_name = "ticket-runs"
+    queue_name = os.getenv("BACKEND_WORKER_QUEUE_NAME", "ticket-runs")

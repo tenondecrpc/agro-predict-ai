@@ -96,8 +96,9 @@ make local-up
 This starts:
 - **PostgreSQL 16** with `pgvector` on port `5432`
 - **Redis 7** on port `6379`
+- **ARQ worker** for asynchronous prediction jobs
 
-Both services persist data in named Docker volumes and expose health checks.
+The database and Redis services persist data in named Docker volumes and expose health checks.
 
 #### Step 2 - Start the backend
 
@@ -145,7 +146,7 @@ This stops and removes the containers and volumes. To only stop without removing
 
 This section consolidates every step to run the complete pipeline locally with OpenCode-Go as the LLM provider. Each process runs in its own terminal.
 
-**Terminal 1 - Infrastructure (PostgreSQL + Redis):**
+**Terminal 1 - Infrastructure (PostgreSQL + Redis + worker):**
 
 ```bash
 make local-up
@@ -172,7 +173,7 @@ make dev-backend
 make dev-frontend
 ```
 
-**Terminal 5 - ARQ Worker (optional, for async webhook processing):**
+**Terminal 5 - ARQ Worker (optional, native hot reload workflow):**
 
 ```bash
 make dev-worker
@@ -200,13 +201,42 @@ docker compose --profile oracle down   # if Oracle was started
 #### Useful targets
 
 ```bash
-make local-up      # Start PostgreSQL + Redis
+make local-up      # Start PostgreSQL + Redis + ARQ worker
 make local-down    # Stop and remove containers/volumes
 make local-logs    # Tail Docker Compose logs
 make local-status  # Show running containers
 make dev-backend   # Run backend with uv (hot reload)
 make dev-frontend  # Run frontend with Vite (hot reload)
+make dev-worker    # Run ARQ worker natively with uv
 ```
+
+## Oracle APEX Configuration
+
+APEX connections store only a `credentials_ref`. At runtime, the adapter resolves the reference from Vault or, in local development, environment variables derived from the ref path.
+
+For `vault://apex/creds`, set:
+
+```bash
+export APEX_CREDS_USER=apex_user
+export APEX_CREDS_PASSWORD=apex_pass
+export APEX_CREDS_DSN=localhost:1521/APEXDB      # SQL mode
+export APEX_CREDS_BASE_URL=https://apex.example.com/ords  # REST mode
+```
+
+Start optional Oracle XE for integration testing with:
+
+```bash
+make apex-up
+```
+
+Create a connection through `/api/v1/apex/connections`, then call `/api/v1/apex/sync` with the connection ID and tenant ID. Write-back requires an explicit `approved_by` value and records an audit row.
+
+## SDD Roadmap Status
+
+| Spec | Status |
+|---|---|
+| 006 - Oracle APEX integration | Real SQL/REST adapter, PostgreSQL persistence, RLS migration, and audit/write-back flow implemented |
+| 012 - Queue resilience | ARQ worker process, lifecycle hooks, health fields, local Compose service, and Helm worker rollout implemented |
 
 ### Option B - Minikube
 
