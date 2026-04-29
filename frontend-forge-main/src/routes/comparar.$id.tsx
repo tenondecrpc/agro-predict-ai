@@ -3,8 +3,16 @@ import { AppShell } from "@/components/agro/AppShell";
 import { Card } from "@/components/agro/Card";
 import { Pill } from "@/components/agro/Pill";
 import { MlBand } from "@/components/agro/agro-pills";
-import { QUOTATIONS, RECOMMENDATION, REQUESTS, SUPPLIERS } from "@/lib/agro/mock";
+import {
+  procurementApi,
+  toUiQuotation,
+  toUiRecommendation,
+  toUiRequest,
+  toUiSupplier,
+  type RecommendResponse,
+} from "@/lib/agro/api";
 import { fmtPYG, fmtPct } from "@/lib/agro/format";
+import type { PurchaseRequest, Quotation, Recommendation, Supplier } from "@/lib/agro/types";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,14 +26,17 @@ import {
   Truck,
   Wind,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/comparar/$id")({
   head: () => ({
     meta: [
       { title: "Comparar y recomendar · AgroBuy" },
-      { name: "description", content: "Tabla comparativa, recomendación IA y generador de mensaje." },
+      {
+        name: "description",
+        content: "Tabla comparativa, recomendación IA y generador de mensaje.",
+      },
     ],
   }),
   component: CompararPage,
@@ -33,16 +44,92 @@ export const Route = createFileRoute("/comparar/$id")({
 
 function CompararPage() {
   const { id } = Route.useParams();
-  const req = REQUESTS.find((r) => r.id === id)!;
-  const quotes = QUOTATIONS.filter((q) => q.request_id === id);
-  const rec = RECOMMENDATION;
-  const recommendedSup = SUPPLIERS.find((s) => s.id === rec.recommended_supplier_id)!;
+  const [req, setReq] = useState<PurchaseRequest | null>(null);
+  const [quotes, setQuotes] = useState<Quotation[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [rec, setRec] = useState<Recommendation | null>(null);
+  const [recommendationRaw, setRecommendationRaw] = useState<RecommendResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const suppliersById = useMemo(
+    () => new Map(suppliers.map((supplier) => [supplier.id, supplier])),
+    [suppliers],
+  );
+  const recommendedSup = rec ? suppliersById.get(rec.recommended_supplier_id) : null;
+  const recommendedQuotationId =
+    recommendationRaw?.recommendation?.recommended_quotation_id ?? quotes[0]?.id ?? "";
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    Promise.all([
+      procurementApi.getRequest(id),
+      procurementApi.listQuotations(id),
+      procurementApi.listSuppliers(),
+    ])
+      .then(([request, quotationRows, supplierRows]) => {
+        if (!active) return;
+        setReq(toUiRequest(request));
+        setQuotes(quotationRows.map(toUiQuotation));
+        setSuppliers(supplierRows.map(toUiSupplier));
+        setError(null);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  async function runRecommendation() {
+    if (quotes.filter((quote) => quote.status === "validada").length < 2) {
+      toast.error("At least two validated quotations are required");
+      return;
+    }
+    setRunning(true);
+    try {
+      const response = await procurementApi.recommendRequest(id);
+      setRecommendationRaw(response);
+      setRec(toUiRecommendation(response));
+      toast.success("Recommendation generated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not generate recommendation");
+    } finally {
+      setRunning(false);
+    }
+  }
 
   const best = useMemo(() => {
-    const minTotal = Math.min(...quotes.map((q) => q.total_pyg));
-    const minDelivery = Math.min(...quotes.map((q) => q.delivery_days));
+    const minTotal = quotes.length ? Math.min(...quotes.map((q) => q.total_pyg)) : 0;
+    const minDelivery = quotes.length ? Math.min(...quotes.map((q) => q.delivery_days)) : 0;
     return { minTotal, minDelivery };
   }, [quotes]);
+
+  if (loading)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center">Loading comparison...</Card>
+      </AppShell>
+    );
+  if (error)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center text-destructive">{error}</Card>
+      </AppShell>
+    );
+  if (!req)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center">Solicitud no encontrada.</Card>
+      </AppShell>
+    );
 
   return (
     <AppShell>
@@ -68,18 +155,25 @@ function CompararPage() {
                   Criterio
                 </th>
                 {quotes.map((q) => {
-                  const sup = SUPPLIERS.find((s) => s.id === q.supplier_id)!;
-                  const isRec = q.supplier_id === rec.recommended_supplier_id;
+                  const sup = suppliersById.get(q.supplier_id);
+                  const isRec = q.supplier_id === rec?.recommended_supplier_id;
                   return (
-                    <th key={q.id} className={[
-                      "text-left px-4 py-3 align-top min-w-[180px]",
-                      isRec ? "bg-primary/8" : "",
-                    ].join(" ")}>
+                    <th
+                      key={q.id}
+                      className={[
+                        "text-left px-4 py-3 align-top min-w-[180px]",
+                        isRec ? "bg-primary/8" : "",
+                      ].join(" ")}
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-foreground">{sup.legal_name}</span>
+                        <span className="font-bold text-foreground">
+                          {sup?.legal_name ?? q.supplier_id}
+                        </span>
                         {isRec && <Pill tone="primary">Recomendado</Pill>}
                       </div>
-                      <div className="mt-1.5"><MlBand score={q.ml_score} /></div>
+                      <div className="mt-1.5">
+                        <MlBand score={q.ml_score} />
+                      </div>
                     </th>
                   );
                 })}
@@ -89,7 +183,8 @@ function CompararPage() {
               <Row label="Items unificados">
                 {quotes.map((q) => (
                   <td key={q.id} className="px-4 py-3 text-foreground">
-                    Urea 46% · 800 ton
+                    {req.items[0]?.description ?? "Item"} ·{" "}
+                    {req.items[0]?.qty.toLocaleString("es-PY") ?? ""} {req.items[0]?.unit ?? ""}
                   </td>
                 ))}
               </Row>
@@ -115,7 +210,9 @@ function CompararPage() {
                     key={q.id}
                     className={[
                       "px-4 py-3 tabular",
-                      q.delivery_days === best.minDelivery ? "bg-info/12 text-info font-semibold" : "text-foreground",
+                      q.delivery_days === best.minDelivery
+                        ? "bg-info/12 text-info font-semibold"
+                        : "text-foreground",
                     ].join(" ")}
                   >
                     {q.delivery_days} días
@@ -127,24 +224,33 @@ function CompararPage() {
               </Row>
               <Row label="Garantía">
                 {quotes.map((q) => (
-                  <td key={q.id} className="px-4 py-3 tabular text-foreground">{q.warranty_months} meses</td>
+                  <td key={q.id} className="px-4 py-3 tabular text-foreground">
+                    {q.warranty_months} meses
+                  </td>
                 ))}
               </Row>
               <Row label="Condiciones de pago">
                 {quotes.map((q) => (
-                  <td key={q.id} className="px-4 py-3 text-foreground">{q.payment_terms}</td>
+                  <td key={q.id} className="px-4 py-3 text-foreground">
+                    {q.payment_terms}
+                  </td>
                 ))}
               </Row>
               <Row label="ML p_on_time">
                 {quotes.map((q) => (
-                  <td key={q.id} className="px-4 py-3 tabular text-foreground">{fmtPct(q.ml_p_on_time, 0)}</td>
+                  <td key={q.id} className="px-4 py-3 tabular text-foreground">
+                    {fmtPct(q.ml_p_on_time, 0)}
+                  </td>
                 ))}
               </Row>
               <Row label="Anomalía">
                 {quotes.map((q) => (
                   <td key={q.id} className="px-4 py-3">
                     {q.anomaly ? (
-                      <span className="inline-flex items-center gap-1.5 text-warning-foreground" title={q.anomaly_reason}>
+                      <span
+                        className="inline-flex items-center gap-1.5 text-warning-foreground"
+                        title={q.anomaly_reason}
+                      >
                         <AlertTriangle className="size-4 text-warning" aria-hidden />
                         <span className="text-xs font-semibold">Detectada</span>
                       </span>
@@ -165,10 +271,24 @@ function CompararPage() {
                 </td>
                 <td colSpan={quotes.length} className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    <Pill tone="success">Precio: Atlantic (anómalo)</Pill>
-                    <Pill tone="info">Plazo: Tecnomyl</Pill>
-                    <Pill tone="primary">Confianza ML: Tecnomyl</Pill>
-                    <Pill tone="earth">Condiciones: Agrofertil</Pill>
+                    <Pill tone="success">
+                      Precio:{" "}
+                      {supplierName(
+                        suppliersById,
+                        quotes.find((q) => q.total_pyg === best.minTotal)?.supplier_id,
+                      )}
+                    </Pill>
+                    <Pill tone="info">
+                      Plazo:{" "}
+                      {supplierName(
+                        suppliersById,
+                        quotes.find((q) => q.delivery_days === best.minDelivery)?.supplier_id,
+                      )}
+                    </Pill>
+                    <Pill tone="primary">
+                      Validaciones: {quotes.filter((q) => q.status === "validada").length}
+                    </Pill>
+                    <Pill tone="earth">Condiciones: revisar detalle</Pill>
                   </div>
                 </td>
               </tr>
@@ -177,80 +297,137 @@ function CompararPage() {
         </div>
       </Card>
 
-      {/* Region 2 — Recommendation */}
-      <Card className="overflow-hidden mb-6 border-primary/30">
-        <div className="bg-hero-gradient text-primary-foreground px-6 py-5">
-          <div className="flex items-start gap-4 flex-wrap">
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] uppercase tracking-widest font-semibold opacity-90 flex items-center gap-2">
-                <Sparkles className="size-3.5" aria-hidden /> Recomendación generada
+      <div className="mb-6 flex justify-end">
+        <button
+          onClick={runRecommendation}
+          disabled={running || quotes.filter((quote) => quote.status === "validada").length < 2}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow disabled:opacity-60"
+        >
+          {running ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Sparkles className="size-4" aria-hidden />
+          )}
+          {running ? "Generando..." : "Generar recomendación IA"}
+        </button>
+      </div>
+
+      {rec && recommendedSup ? (
+        <Card className="overflow-hidden mb-6 border-primary/30">
+          <div className="bg-hero-gradient text-primary-foreground px-6 py-5">
+            <div className="flex items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] uppercase tracking-widest font-semibold opacity-90 flex items-center gap-2">
+                  <Sparkles className="size-3.5" aria-hidden /> Recomendación generada
+                </div>
+                <h3 className="mt-1 text-2xl font-bold tracking-tight">
+                  {recommendedSup.legal_name}
+                </h3>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs font-semibold">
+                    <CheckCircle2 className="size-3.5" aria-hidden />
+                    Alta confianza
+                  </span>
+                  <span className="text-xs opacity-90">
+                    RUC {recommendedSup.ruc} · fuente{" "}
+                    {recommendationRaw?.recommendation?.source ?? "fallback"}
+                  </span>
+                </div>
               </div>
-              <h3 className="mt-1 text-2xl font-bold tracking-tight">
-                {recommendedSup.legal_name}
-              </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-xs font-semibold">
-                  <CheckCircle2 className="size-3.5" aria-hidden />
-                  Alta confianza
-                </span>
-                <span className="text-xs opacity-90">
-                  RUC {recommendedSup.ruc} · entrega 12 días
-                </span>
-              </div>
+              <CompositeScore value={rec.composite_score} />
             </div>
-            <CompositeScore value={rec.composite_score} />
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 border-b border-border">
-          <ScoreCard
-            title="Urgency Score"
-            total={rec.urgency_score.total}
-            tone="earth"
-            rows={[
-              { label: "Clima (lluvia ventana V4-V6)", value: rec.urgency_score.weather, icon: <Cloud className="size-3.5" aria-hidden /> },
-              { label: "Riesgo logístico", value: rec.urgency_score.delivery, icon: <Truck className="size-3.5" aria-hidden /> },
-              { label: "Volatilidad PYG/USD", value: rec.urgency_score.volatility, icon: <TrendingUp className="size-3.5" aria-hidden /> },
-            ]}
-          />
-          <ScoreCard
-            title="Offer Score"
-            total={rec.offer_score.total}
-            tone="primary"
-            rows={[
-              { label: "Confianza proveedor", value: rec.offer_score.supplier, icon: <CheckCircle2 className="size-3.5" aria-hidden /> },
-              { label: "Términos y condiciones", value: rec.offer_score.terms, icon: <Wind className="size-3.5" aria-hidden /> },
-              { label: "Riesgo de entrega", value: rec.offer_score.delivery_risk, icon: <Truck className="size-3.5" aria-hidden /> },
-            ]}
-          />
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 border-b border-border">
+            <ScoreCard
+              title="Urgency Score"
+              total={rec.urgency_score.total}
+              tone="earth"
+              rows={[
+                {
+                  label: "Clima (lluvia ventana V4-V6)",
+                  value: rec.urgency_score.weather,
+                  icon: <Cloud className="size-3.5" aria-hidden />,
+                },
+                {
+                  label: "Riesgo logístico",
+                  value: rec.urgency_score.delivery,
+                  icon: <Truck className="size-3.5" aria-hidden />,
+                },
+                {
+                  label: "Volatilidad PYG/USD",
+                  value: rec.urgency_score.volatility,
+                  icon: <TrendingUp className="size-3.5" aria-hidden />,
+                },
+              ]}
+            />
+            <ScoreCard
+              title="Offer Score"
+              total={rec.offer_score.total}
+              tone="primary"
+              rows={[
+                {
+                  label: "Confianza proveedor",
+                  value: rec.offer_score.supplier,
+                  icon: <CheckCircle2 className="size-3.5" aria-hidden />,
+                },
+                {
+                  label: "Términos y condiciones",
+                  value: rec.offer_score.terms,
+                  icon: <Wind className="size-3.5" aria-hidden />,
+                },
+                {
+                  label: "Riesgo de entrega",
+                  value: rec.offer_score.delivery_risk,
+                  icon: <Truck className="size-3.5" aria-hidden />,
+                },
+              ]}
+            />
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 p-5">
-          <Markdown title="Justificación" body={rec.justification_md} />
-          <Markdown title="Alternativas consideradas" body={rec.alternatives_md} />
-          <Markdown title="Riesgos identificados" body={rec.risks_md} />
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 p-5">
+            <Markdown title="Justificación" body={rec.justification_md} />
+            <Markdown title="Alternativas consideradas" body={rec.alternatives_md} />
+            <Markdown title="Riesgos identificados" body={rec.risks_md} />
+          </div>
 
-        <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3 bg-secondary/30">
-          <button
-            onClick={() => toast.message("Ajuste de pesos abierto")}
-            className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/70"
-          >
-            Ajustar criterios
-          </button>
-          <button
-            onClick={() => toast.success("Recomendación aceptada — pasando a aprobación")}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow"
-          >
-            <CheckCircle2 className="size-4" aria-hidden /> Aceptar recomendación
-          </button>
-        </div>
-      </Card>
+          <div className="px-5 py-4 border-t border-border flex items-center justify-end gap-3 bg-secondary/30">
+            <button
+              onClick={() => toast.message("Ajuste de pesos abierto")}
+              className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/70"
+            >
+              Ajustar criterios
+            </button>
+            <button
+              onClick={() => toast.success("Recomendación aceptada — pasando a aprobación")}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow"
+            >
+              <CheckCircle2 className="size-4" aria-hidden /> Aceptar recomendación
+            </button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-8 mb-6 text-center">
+          <div className="font-semibold text-foreground">No recommendation generated yet</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Run the AI recommendation after at least two quotations are validated.
+          </p>
+        </Card>
+      )}
 
       {/* Region 3 — Negotiation message generator */}
-      <NegotiationGenerator defaultSupplier={rec.recommended_supplier_id} />
+      <NegotiationGenerator
+        quotations={quotes}
+        suppliers={suppliers}
+        defaultQuotationId={recommendedQuotationId}
+      />
     </AppShell>
   );
+}
+
+function supplierName(suppliersById: Map<string, Supplier>, supplierId?: string) {
+  if (!supplierId) return "N/A";
+  return suppliersById.get(supplierId)?.legal_name ?? supplierId;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -267,9 +444,21 @@ function CompositeScore({ value }: { value: number }) {
   const c = 2 * Math.PI * r;
   const offset = c - (value / 100) * c;
   return (
-    <div className="relative size-24 shrink-0" role="img" aria-label={`Composite score ${value} de 100`}>
+    <div
+      className="relative size-24 shrink-0"
+      role="img"
+      aria-label={`Composite score ${value} de 100`}
+    >
       <svg viewBox="0 0 100 100" className="size-24 -rotate-90">
-        <circle cx="50" cy="50" r={r} stroke="currentColor" strokeOpacity="0.25" strokeWidth="8" fill="none" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          stroke="currentColor"
+          strokeOpacity="0.25"
+          strokeWidth="8"
+          fill="none"
+        />
         <circle
           cx="50"
           cy="50"
@@ -341,7 +530,10 @@ function Markdown({ title, body }: { title: string; body: string }) {
           if (ln.startsWith("- ")) {
             return (
               <div key={i} className="flex gap-2">
-                <span className="text-primary mt-1.5 size-1.5 rounded-full bg-primary shrink-0" aria-hidden />
+                <span
+                  className="text-primary mt-1.5 size-1.5 rounded-full bg-primary shrink-0"
+                  aria-hidden
+                />
                 <span dangerouslySetInnerHTML={{ __html: inline(ln.slice(2)) }} />
               </div>
             );
@@ -361,42 +553,53 @@ function inline(s: string) {
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-primary font-semibold">$1</strong>');
 }
 
-function NegotiationGenerator({ defaultSupplier }: { defaultSupplier: string }) {
-  const [supplier, setSupplier] = useState(defaultSupplier);
+function NegotiationGenerator({
+  quotations,
+  suppliers,
+  defaultQuotationId,
+}: {
+  quotations: Quotation[];
+  suppliers: Supplier[];
+  defaultQuotationId: string;
+}) {
+  const [quotationId, setQuotationId] = useState(defaultQuotationId);
   const [improve, setImprove] = useState({ precio: true, plazo: true, garantia: false });
   const [tone, setTone] = useState<"cordial" | "formal" | "asertivo">("cordial");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const suppliersById = useMemo(
+    () => new Map(suppliers.map((supplier) => [supplier.id, supplier])),
+    [suppliers],
+  );
+
+  useEffect(() => {
+    setQuotationId(defaultQuotationId);
+  }, [defaultQuotationId]);
 
   async function generate() {
+    if (!quotationId) {
+      toast.error("Select a quotation before generating a message");
+      return;
+    }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1700));
-    const sup = SUPPLIERS.find((s) => s.id === supplier)!;
-    const greeting =
-      tone === "cordial" ? "Estimados," : tone === "formal" ? "Señores:" : "Equipo,";
-    const ask: string[] = [];
-    if (improve.precio) ask.push("- Una **mejora del 3–5% en el precio unitario**, considerando el volumen comprometido (800 ton).");
-    if (improve.plazo) ask.push("- Reducir el plazo de entrega a **10 días o menos**, para anticipar la ventana fenológica V4–V6.");
-    if (improve.garantia) ask.push("- Ampliar la **garantía a 9 meses**, alineada al ciclo de almacenamiento previsto.");
-
-    setMsg(
-      `${greeting}
-
-Junto con saludarles, agradecemos su cotización N° 4421 por urea 46% para la zafra 2026/27 de la Cooperativa Yguazú.
-
-Hemos analizado las propuestas recibidas y ${sup.legal_name} se ubica en el primer lugar de nuestra evaluación, con una probabilidad de entrega a tiempo del 92% y stock confirmado en Villeta. Para cerrar la operación quisiéramos solicitar:
-
-${ask.join("\n")}
-
-Quedamos atentos a su revisión hasta el viernes próximo. Cualquier ajuste que puedan facilitar nos permitirá adjudicar de forma inmediata.
-
-Saludos cordiales,
-Ana Rojas — Compras
-Cooperativa Yguazú · Itapúa, Paraguay`,
-    );
-    setEditing(false);
-    setLoading(false);
+    try {
+      const target_improvements: Record<string, number> = {};
+      if (improve.precio) target_improvements.price_pct = -5;
+      if (improve.plazo) target_improvements.lead_time_days = 10;
+      if (improve.garantia) target_improvements.warranty_months = 9;
+      const response = await procurementApi.negotiateQuotation(quotationId, {
+        target_improvements,
+        tone,
+      });
+      setMsg(response.message_text);
+      setEditing(false);
+      toast.success(`Message generated (${response.source})`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not generate message");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -410,26 +613,37 @@ Cooperativa Yguazú · Itapúa, Paraguay`,
       <div className="p-5 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-end border-b border-border">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-[12px] font-semibold mb-1.5 text-foreground">Proveedor</label>
+            <label className="block text-[12px] font-semibold mb-1.5 text-foreground">
+              Cotización
+            </label>
             <select
-              value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
+              value={quotationId}
+              onChange={(e) => setQuotationId(e.target.value)}
               className="w-full rounded-lg bg-background border border-input px-3 py-2 text-sm"
             >
-              {SUPPLIERS.map((s) => (
-                <option key={s.id} value={s.id}>{s.legal_name}</option>
+              {quotations.map((quotation) => (
+                <option key={quotation.id} value={quotation.id}>
+                  {suppliersById.get(quotation.supplier_id)?.legal_name ?? quotation.supplier_id}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-[12px] font-semibold mb-1.5 text-foreground">Mejorar</label>
+            <label className="block text-[12px] font-semibold mb-1.5 text-foreground">
+              Mejorar
+            </label>
             <div className="flex flex-wrap gap-2">
-              {([
-                ["precio", "precio %"],
-                ["plazo", "plazo días"],
-                ["garantia", "garantía meses"],
-              ] as const).map(([k, l]) => (
-                <label key={k} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold cursor-pointer hover:border-primary/40">
+              {(
+                [
+                  ["precio", "precio %"],
+                  ["plazo", "plazo días"],
+                  ["garantia", "garantía meses"],
+                ] as const
+              ).map(([k, l]) => (
+                <label
+                  key={k}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold cursor-pointer hover:border-primary/40"
+                >
                   <input
                     type="checkbox"
                     checked={improve[k]}
@@ -465,7 +679,11 @@ Cooperativa Yguazú · Itapúa, Paraguay`,
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow disabled:opacity-60"
         >
-          {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />}
+          {loading ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Sparkles className="size-4" aria-hidden />
+          )}
           {loading ? "Generando…" : "Generar mensaje"}
         </button>
       </div>
@@ -474,7 +692,13 @@ Cooperativa Yguazú · Itapúa, Paraguay`,
         <div className="p-5">
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="bg-secondary/40 px-4 py-2 text-xs font-semibold text-muted-foreground flex items-center justify-between">
-              <span>Para: {SUPPLIERS.find((s) => s.id === supplier)?.legal_name}</span>
+              <span>
+                Para:{" "}
+                {supplierName(
+                  suppliersById,
+                  quotations.find((quotation) => quotation.id === quotationId)?.supplier_id,
+                )}
+              </span>
               <span>Asunto: Cotización urea 46% · Cooperativa Yguazú</span>
             </div>
             {editing ? (

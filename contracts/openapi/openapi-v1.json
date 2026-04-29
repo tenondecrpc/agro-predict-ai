@@ -1,6 +1,313 @@
 {
   "components": {
     "schemas": {
+      "AccuracyMetrics": {
+        "additionalProperties": false,
+        "properties": {
+          "accuracy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy"
+          },
+          "mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae"
+          },
+          "r2_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R2 Score"
+          },
+          "rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse"
+          },
+          "validation_date": {
+            "format": "date-time",
+            "title": "Validation Date",
+            "type": "string"
+          }
+        },
+        "title": "AccuracyMetrics",
+        "type": "object"
+      },
+      "AdmissionExceptionCreate": {
+        "properties": {
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "image_reference": {
+            "title": "Image Reference",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "policy_name": {
+            "title": "Policy Name",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "second_approver": {
+            "title": "Second Approver",
+            "type": "string"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "policy_name",
+          "image_reference",
+          "rationale",
+          "approved_by",
+          "second_approver",
+          "expires_at"
+        ],
+        "title": "AdmissionExceptionCreate",
+        "type": "object"
+      },
+      "AdmissionExceptionListResponse": {
+        "properties": {
+          "exceptions": {
+            "items": {
+              "$ref": "#/components/schemas/AdmissionExceptionResponse"
+            },
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "exceptions",
+          "total"
+        ],
+        "title": "AdmissionExceptionListResponse",
+        "type": "object"
+      },
+      "AdmissionExceptionResponse": {
+        "properties": {
+          "approved_by": {
+            "title": "Approved By",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "exception_id": {
+            "title": "Exception Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "image_reference": {
+            "title": "Image Reference",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "title": "Metadata",
+            "type": "object"
+          },
+          "policy_name": {
+            "title": "Policy Name",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "revoke_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoke Reason"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          },
+          "second_approver": {
+            "title": "Second Approver",
+            "type": "string"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exception_id",
+          "tenant_id",
+          "team_id",
+          "policy_name",
+          "image_reference",
+          "rationale",
+          "approved_by",
+          "second_approver",
+          "expires_at",
+          "metadata",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdmissionExceptionResponse",
+        "type": "object"
+      },
+      "AdmissionExceptionRevoke": {
+        "properties": {
+          "revoke_reason": {
+            "title": "Revoke Reason",
+            "type": "string"
+          },
+          "revoked_by": {
+            "title": "Revoked By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revoked_by",
+          "revoke_reason"
+        ],
+        "title": "AdmissionExceptionRevoke",
+        "type": "object"
+      },
+      "AllowlistResponse": {
+        "properties": {
+          "cidrs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cidrs",
+            "type": "array"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "cidrs"
+        ],
+        "title": "AllowlistResponse",
+        "type": "object"
+      },
+      "AllowlistUpdateRequest": {
+        "properties": {
+          "cidrs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cidrs",
+            "type": "array"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "cidrs"
+        ],
+        "title": "AllowlistUpdateRequest",
+        "type": "object"
+      },
       "ApiDeprecation": {
         "properties": {
           "active": {
@@ -72,6 +379,89 @@
         ],
         "title": "ArtifactKind",
         "type": "string"
+      },
+      "Body_register_model_api_v1_models_post": {
+        "properties": {
+          "accuracy_metrics": {
+            "$ref": "#/components/schemas/AccuracyMetrics"
+          },
+          "feature_schema": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Feature Schema",
+            "type": "object"
+          }
+        },
+        "required": [
+          "accuracy_metrics",
+          "feature_schema"
+        ],
+        "title": "Body_register_model_api_v1_models_post",
+        "type": "object"
+      },
+      "CriteriaWeights": {
+        "additionalProperties": false,
+        "description": "Multi-criteria weights for the recommendation. Must sum to 100.",
+        "properties": {
+          "delivery": {
+            "default": 30,
+            "title": "Delivery",
+            "type": "integer"
+          },
+          "price": {
+            "default": 40,
+            "title": "Price",
+            "type": "integer"
+          },
+          "quality": {
+            "default": 20,
+            "title": "Quality",
+            "type": "integer"
+          },
+          "terms": {
+            "default": 10,
+            "title": "Terms",
+            "type": "integer"
+          }
+        },
+        "title": "CriteriaWeights",
+        "type": "object"
+      },
+      "DataProvenanceEntry": {
+        "properties": {
+          "checksum": {
+            "title": "Checksum",
+            "type": "string"
+          },
+          "ingested_at": {
+            "format": "date-time",
+            "title": "Ingested At",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "validation_status": {
+            "enum": [
+              "passed",
+              "failed",
+              "stale",
+              "missing"
+            ],
+            "title": "Validation Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "ingested_at",
+          "validation_status",
+          "checksum"
+        ],
+        "title": "DataProvenanceEntry",
+        "type": "object"
       },
       "EscalationReason": {
         "enum": [
@@ -147,6 +537,399 @@
           }
         },
         "title": "ExecutionRequest",
+        "type": "object"
+      },
+      "ExplanationArtifactModel": {
+        "properties": {
+          "confidence_level": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Level",
+            "type": "number"
+          },
+          "data_sources_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Sources Used",
+            "type": "array"
+          },
+          "feature_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Feature Scores",
+            "type": "object"
+          },
+          "human_readable_summary": {
+            "title": "Human Readable Summary",
+            "type": "string"
+          },
+          "uncertainty_factors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Uncertainty Factors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "feature_scores",
+          "data_sources_used",
+          "confidence_level",
+          "uncertainty_factors",
+          "human_readable_summary"
+        ],
+        "title": "ExplanationArtifactModel",
+        "type": "object"
+      },
+      "ExtractRequest": {
+        "properties": {
+          "raw_text": {
+            "minLength": 1,
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "raw_text",
+          "tenant_id"
+        ],
+        "title": "ExtractRequest",
+        "type": "object"
+      },
+      "ExtractedItem": {
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "subtotal": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "type": "string"
+          },
+          "unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price",
+          "subtotal"
+        ],
+        "title": "ExtractedItem",
+        "type": "object"
+      },
+      "ExtractedQuotation": {
+        "description": "LLM extraction preview. The user confirms before persisting.",
+        "properties": {
+          "currency": {
+            "default": "PYG",
+            "enum": [
+              "PYG",
+              "USD",
+              "EUR",
+              "BRL",
+              "ARS"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "discount_pct": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Pct"
+          },
+          "exchange_rate_quoted": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Rate Quoted"
+          },
+          "extraction_confidence": {
+            "default": "0.5",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Extraction Confidence",
+            "type": "string"
+          },
+          "extraction_source": {
+            "default": "llm",
+            "enum": [
+              "llm",
+              "fallback"
+            ],
+            "title": "Extraction Source",
+            "type": "string"
+          },
+          "includes_iva": {
+            "default": true,
+            "title": "Includes Iva",
+            "type": "boolean"
+          },
+          "incoterm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incoterm"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "iva_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Rate"
+          },
+          "lead_time_days": {
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "payment_terms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Terms"
+          },
+          "supplier_legal_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Legal Name"
+          },
+          "supplier_ruc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Ruc"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "validity_until_iso": {
+            "format": "date",
+            "title": "Validity Until Iso",
+            "type": "string"
+          },
+          "warranty_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warranty Months"
+          }
+        },
+        "required": [
+          "total_amount",
+          "lead_time_days",
+          "validity_until_iso"
+        ],
+        "title": "ExtractedQuotation",
+        "type": "object"
+      },
+      "FXRate": {
+        "additionalProperties": false,
+        "description": "A cached USD-to-PYG (or any pair) exchange rate.",
+        "properties": {
+          "base_currency": {
+            "default": "USD",
+            "title": "Base Currency",
+            "type": "string"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "quote_currency": {
+            "default": "PYG",
+            "title": "Quote Currency",
+            "type": "string"
+          },
+          "rate_buy": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Buy"
+          },
+          "rate_id": {
+            "title": "Rate Id",
+            "type": "string"
+          },
+          "rate_reference": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Rate Reference",
+            "type": "string"
+          },
+          "rate_sell": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Sell"
+          },
+          "raw_response": {
+            "additionalProperties": true,
+            "title": "Raw Response",
+            "type": "object"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rate_reference",
+          "source",
+          "valid_until"
+        ],
+        "title": "FXRate",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -770,6 +1553,235 @@
         "title": "KnowledgeRetrievalResponse",
         "type": "object"
       },
+      "Model": {
+        "additionalProperties": false,
+        "properties": {
+          "accuracy_metrics": {
+            "$ref": "#/components/schemas/AccuracyMetrics"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dataset_hash": {
+            "title": "Dataset Hash",
+            "type": "string"
+          },
+          "feature_schema": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Feature Schema",
+            "type": "object"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "model_type": {
+            "$ref": "#/components/schemas/ModelType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelStatus",
+            "default": "registered"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "training_date": {
+            "format": "date-time",
+            "title": "Training Date",
+            "type": "string"
+          },
+          "version": {
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "model_type",
+          "tenant_id",
+          "team_id",
+          "training_date",
+          "dataset_hash",
+          "accuracy_metrics",
+          "feature_schema"
+        ],
+        "title": "Model",
+        "type": "object"
+      },
+      "ModelStatus": {
+        "enum": [
+          "registered",
+          "shadow",
+          "active",
+          "archived"
+        ],
+        "title": "ModelStatus",
+        "type": "string"
+      },
+      "ModelType": {
+        "enum": [
+          "sklearn",
+          "xgboost",
+          "tensorflow",
+          "pytorch"
+        ],
+        "title": "ModelType",
+        "type": "string"
+      },
+      "ModelValidation": {
+        "additionalProperties": false,
+        "properties": {
+          "accuracy_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy Delta"
+          },
+          "comparison_results": {
+            "additionalProperties": true,
+            "title": "Comparison Results",
+            "type": "object"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "prediction_count": {
+            "default": 0,
+            "title": "Prediction Count",
+            "type": "integer"
+          },
+          "shadow_model_id": {
+            "title": "Shadow Model Id",
+            "type": "string"
+          },
+          "start_time": {
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "status": {
+            "default": "running",
+            "enum": [
+              "running",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "validation_id": {
+            "title": "Validation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_id",
+          "shadow_model_id"
+        ],
+        "title": "ModelValidation",
+        "type": "object"
+      },
+      "NegotiateRequest": {
+        "properties": {
+          "target_improvements": {
+            "additionalProperties": true,
+            "title": "Target Improvements",
+            "type": "object"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "tone": {
+            "default": "cordial",
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id"
+        ],
+        "title": "NegotiateRequest",
+        "type": "object"
+      },
+      "NegotiationMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "message_text": {
+            "title": "Message Text",
+            "type": "string"
+          },
+          "source": {
+            "default": "llm",
+            "enum": [
+              "llm",
+              "fallback"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "target_improvements": {
+            "additionalProperties": true,
+            "title": "Target Improvements",
+            "type": "object"
+          },
+          "tone": {
+            "default": "cordial",
+            "enum": [
+              "cordial",
+              "formal",
+              "asertivo"
+            ],
+            "title": "Tone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_text"
+        ],
+        "title": "NegotiationMessage",
+        "type": "object"
+      },
       "PlanningRequest": {
         "additionalProperties": false,
         "properties": {
@@ -880,6 +1892,776 @@
         "title": "PlanningRequest",
         "type": "object"
       },
+      "PredictionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "crop": {
+            "title": "Crop",
+            "type": "string"
+          },
+          "input_data": {
+            "additionalProperties": true,
+            "title": "Input Data",
+            "type": "object"
+          },
+          "input_data_hash": {
+            "default": "",
+            "title": "Input Data Hash",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "time_horizon_days": {
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Time Horizon Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "crop",
+          "region",
+          "time_horizon_days",
+          "input_data"
+        ],
+        "title": "PredictionInput",
+        "type": "object"
+      },
+      "PredictionOutput": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "confidence_interval": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Interval"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_provenance": {
+            "items": {
+              "$ref": "#/components/schemas/DataProvenanceEntry"
+            },
+            "title": "Data Provenance",
+            "type": "array"
+          },
+          "degradation_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degradation Flags",
+            "type": "array"
+          },
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "explanation_artifact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExplanationArtifactModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feature_importance": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Importance"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "output": {
+            "additionalProperties": true,
+            "title": "Output",
+            "type": "object"
+          },
+          "prediction_id": {
+            "title": "Prediction Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PredictionStatus"
+          },
+          "team_id": {
+            "default": "unknown",
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "model_version",
+          "status",
+          "output",
+          "data_provenance"
+        ],
+        "title": "PredictionOutput",
+        "type": "object"
+      },
+      "PredictionStatus": {
+        "enum": [
+          "pending",
+          "validating",
+          "model_executing",
+          "generating_recommendations",
+          "explaining",
+          "reviewing",
+          "completed",
+          "degraded",
+          "escalated",
+          "failed"
+        ],
+        "title": "PredictionStatus",
+        "type": "string"
+      },
+      "ProcurementAuditEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "enum": [
+              "purchase_request",
+              "supplier",
+              "quotation"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "payload_summary": {
+            "additionalProperties": true,
+            "title": "Payload Summary",
+            "type": "object"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "actor",
+          "action",
+          "entity_type",
+          "entity_id"
+        ],
+        "title": "ProcurementAuditEvent",
+        "type": "object"
+      },
+      "PublicComponentStatus": {
+        "enum": [
+          "operational",
+          "degraded",
+          "partial_outage",
+          "major_outage"
+        ],
+        "title": "PublicComponentStatus",
+        "type": "string"
+      },
+      "PublicStatusComponent": {
+        "properties": {
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PublicComponentStatus"
+          }
+        },
+        "required": [
+          "component",
+          "status",
+          "message"
+        ],
+        "title": "PublicStatusComponent",
+        "type": "object"
+      },
+      "PublicStatusPage": {
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/PublicStatusComponent"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "public-status.v1",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PublicComponentStatus"
+          }
+        },
+        "required": [
+          "status",
+          "components"
+        ],
+        "title": "PublicStatusPage",
+        "type": "object"
+      },
+      "PurchaseRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "approver_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approver Id"
+          },
+          "awarded_quotation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awarded Quotation Id"
+          },
+          "budget_cap": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Cap"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "criteria_weights": {
+            "$ref": "#/components/schemas/CriteriaWeights"
+          },
+          "currency": {
+            "default": "PYG",
+            "maxLength": 8,
+            "title": "Currency",
+            "type": "string"
+          },
+          "current_stock_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stock Days"
+          },
+          "delivery_department": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Department"
+          },
+          "delivery_location": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Location"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fenological_window": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fenological Window"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestItem-Output"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PurchaseRequestStatus",
+            "default": "draft"
+          },
+          "target_crop": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Crop"
+          },
+          "target_delivery_date": {
+            "format": "date",
+            "title": "Target Delivery Date",
+            "type": "string"
+          },
+          "target_hectares": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Hectares"
+          },
+          "target_zafra": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Zafra"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/Urgency",
+            "default": "normal"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "requested_by",
+          "title",
+          "target_delivery_date"
+        ],
+        "title": "PurchaseRequest",
+        "type": "object"
+      },
+      "PurchaseRequestCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "budget_cap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Cap"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "criteria_weights": {
+            "$ref": "#/components/schemas/CriteriaWeights"
+          },
+          "currency": {
+            "default": "PYG",
+            "maxLength": 8,
+            "title": "Currency",
+            "type": "string"
+          },
+          "current_stock_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Stock Days"
+          },
+          "delivery_department": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Department"
+          },
+          "delivery_location": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Location"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fenological_window": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fenological Window"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestItem-Input"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "target_crop": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Crop"
+          },
+          "target_delivery_date": {
+            "format": "date",
+            "title": "Target Delivery Date",
+            "type": "string"
+          },
+          "target_hectares": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Hectares"
+          },
+          "target_zafra": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Zafra"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/Urgency",
+            "default": "normal"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "requested_by",
+          "title",
+          "target_delivery_date"
+        ],
+        "title": "PurchaseRequestCreate",
+        "type": "object"
+      },
+      "PurchaseRequestStatus": {
+        "enum": [
+          "draft",
+          "in_quoting",
+          "ready_for_review",
+          "recommended",
+          "approved",
+          "cancelled",
+          "closed"
+        ],
+        "title": "PurchaseRequestStatus",
+        "type": "string"
+      },
+      "QualityFlag": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "validity_expired",
+              "currency_not_supported",
+              "lead_time_implausible",
+              "unit_mismatch",
+              "missing_total",
+              "negative_amount",
+              "supplier_not_found",
+              "request_not_found"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "QualityFlag",
+        "type": "object"
+      },
       "QualityTarget": {
         "properties": {
           "name": {
@@ -891,6 +2673,1123 @@
           "name"
         ],
         "title": "QualityTarget",
+        "type": "object"
+      },
+      "Quotation": {
+        "additionalProperties": false,
+        "properties": {
+          "anomaly_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anomaly Reason"
+          },
+          "anomaly_score": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anomaly Score"
+          },
+          "attachment_ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Ref"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "currency": {
+            "default": "PYG",
+            "maxLength": 8,
+            "title": "Currency",
+            "type": "string"
+          },
+          "discount_pct": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Pct"
+          },
+          "exchange_rate_quoted": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Rate Quoted"
+          },
+          "extraction_confidence": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Confidence"
+          },
+          "includes_iva": {
+            "default": true,
+            "title": "Includes Iva",
+            "type": "boolean"
+          },
+          "incoterm": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incoterm"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationItem-Output"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "iva_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Rate"
+          },
+          "lead_time_days": {
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "payment_terms": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Terms"
+          },
+          "quality_flags": {
+            "items": {
+              "$ref": "#/components/schemas/QualityFlag"
+            },
+            "title": "Quality Flags",
+            "type": "array"
+          },
+          "quotation_id": {
+            "title": "Quotation Id",
+            "type": "string"
+          },
+          "raw_extracted_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Extracted Text"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/QuotationStatus",
+            "default": "uploaded"
+          },
+          "supplier_id": {
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "terms_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Text"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "total_pyg_normalized": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pyg Normalized"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validity_until": {
+            "format": "date",
+            "title": "Validity Until",
+            "type": "string"
+          },
+          "warranty_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warranty Months"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "request_id",
+          "supplier_id",
+          "created_by",
+          "total_amount",
+          "lead_time_days",
+          "validity_until"
+        ],
+        "title": "Quotation",
+        "type": "object"
+      },
+      "QuotationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachment Ref"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "currency": {
+            "default": "PYG",
+            "maxLength": 8,
+            "title": "Currency",
+            "type": "string"
+          },
+          "discount_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Pct"
+          },
+          "exchange_rate_quoted": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Rate Quoted"
+          },
+          "extraction_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Confidence"
+          },
+          "includes_iva": {
+            "default": true,
+            "title": "Includes Iva",
+            "type": "boolean"
+          },
+          "incoterm": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incoterm"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QuotationItem-Input"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "iva_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Rate"
+          },
+          "lead_time_days": {
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "payment_terms": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Terms"
+          },
+          "raw_extracted_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Extracted Text"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "supplier_id": {
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "terms_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Text"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Total Amount"
+          },
+          "total_pyg_normalized": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Pyg Normalized"
+          },
+          "validity_until": {
+            "format": "date",
+            "title": "Validity Until",
+            "type": "string"
+          },
+          "warranty_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warranty Months"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "request_id",
+          "supplier_id",
+          "created_by",
+          "total_amount",
+          "lead_time_days",
+          "validity_until"
+        ],
+        "title": "QuotationCreate",
+        "type": "object"
+      },
+      "QuotationItem-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "request_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Item Id"
+          },
+          "subtotal": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Subtotal"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Unit Price"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price",
+          "subtotal"
+        ],
+        "title": "QuotationItem",
+        "type": "object"
+      },
+      "QuotationItem-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "lead_time_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Time Days"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "presentation": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentation"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "request_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Item Id"
+          },
+          "subtotal": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "type": "string"
+          },
+          "unit_price": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price",
+          "subtotal"
+        ],
+        "title": "QuotationItem",
+        "type": "object"
+      },
+      "QuotationStatus": {
+        "enum": [
+          "uploaded",
+          "validated",
+          "quarantined",
+          "awarded",
+          "rejected"
+        ],
+        "title": "QuotationStatus",
+        "type": "string"
+      },
+      "RateCardCreate": {
+        "properties": {
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date-time",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Metadata",
+            "type": "object"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "rate_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Rate Usd"
+          },
+          "unit": {
+            "default": "per_1k_tokens",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "rate_usd",
+          "effective_from",
+          "created_by"
+        ],
+        "title": "RateCardCreate",
+        "type": "object"
+      },
+      "RateCardUpdate": {
+        "properties": {
+          "effective_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "rate_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Usd"
+          }
+        },
+        "title": "RateCardUpdate",
+        "type": "object"
+      },
+      "RecommendResponse": {
+        "properties": {
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "fx_rate_usd_pyg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fx Rate Usd Pyg"
+          },
+          "recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Recommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recommendation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Id"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "score_count": {
+            "default": 0,
+            "title": "Score Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "weather_risk_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather Risk Score"
+          }
+        },
+        "required": [
+          "status",
+          "request_id"
+        ],
+        "title": "RecommendResponse",
+        "type": "object"
+      },
+      "Recommendation": {
+        "additionalProperties": false,
+        "properties": {
+          "composite_score": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Composite Score",
+            "type": "string"
+          },
+          "decision_band": {
+            "enum": [
+              "buy_now",
+              "negotiate_and_close",
+              "buy_with_followup",
+              "wait_better_offer",
+              "not_recommended"
+            ],
+            "title": "Decision Band",
+            "type": "string"
+          },
+          "offer_score": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Offer Score",
+            "type": "string"
+          },
+          "reasoning_markdown": {
+            "title": "Reasoning Markdown",
+            "type": "string"
+          },
+          "recommended_quotation_id": {
+            "title": "Recommended Quotation Id",
+            "type": "string"
+          },
+          "recommended_supplier_id": {
+            "title": "Recommended Supplier Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "llm",
+            "enum": [
+              "llm",
+              "fallback"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "urgency_score": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Urgency Score",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recommended_quotation_id",
+          "recommended_supplier_id",
+          "decision_band",
+          "composite_score",
+          "urgency_score",
+          "offer_score",
+          "reasoning_markdown"
+        ],
+        "title": "Recommendation",
+        "type": "object"
+      },
+      "RequestItem-Input": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "position": {
+            "default": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "specifications": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specifications"
+          },
+          "target_unit_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Unit Price"
+          },
+          "unit": {
+            "default": "unit",
+            "maxLength": 32,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "quantity"
+        ],
+        "title": "RequestItem",
+        "type": "object"
+      },
+      "RequestItem-Output": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "position": {
+            "default": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "specifications": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specifications"
+          },
+          "target_unit_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Unit Price"
+          },
+          "unit": {
+            "default": "unit",
+            "maxLength": 32,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "quantity"
+        ],
+        "title": "RequestItem",
         "type": "object"
       },
       "RunNode": {
@@ -976,6 +3875,340 @@
         ],
         "title": "RuntimeSimulationRequest",
         "type": "object"
+      },
+      "SecretRotationRequest": {
+        "properties": {
+          "new_secret": {
+            "title": "New Secret",
+            "type": "string"
+          },
+          "overlap_hours": {
+            "default": 24,
+            "title": "Overlap Hours",
+            "type": "integer"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "team_id",
+          "new_secret"
+        ],
+        "title": "SecretRotationRequest",
+        "type": "object"
+      },
+      "SecretRotationResponse": {
+        "properties": {
+          "rotated_by": {
+            "title": "Rotated By",
+            "type": "string"
+          },
+          "rotation_id": {
+            "title": "Rotation Id",
+            "type": "string"
+          },
+          "rotation_overlap_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Overlap Until"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rotation_id",
+          "tenant_id",
+          "team_id",
+          "rotation_overlap_until",
+          "rotated_by"
+        ],
+        "title": "SecretRotationResponse",
+        "type": "object"
+      },
+      "Supplier": {
+        "additionalProperties": false,
+        "properties": {
+          "commercial_name": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Name"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "contact_phone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Phone"
+          },
+          "country": {
+            "default": "PY",
+            "maxLength": 64,
+            "title": "Country",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "is_importer": {
+            "default": false,
+            "title": "Is Importer",
+            "type": "boolean"
+          },
+          "iso_certified": {
+            "default": false,
+            "title": "Iso Certified",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "primary_categories": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Categories"
+          },
+          "primary_origin_countries": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Origin Countries"
+          },
+          "risk_tier": {
+            "default": "unknown",
+            "maxLength": 32,
+            "title": "Risk Tier",
+            "type": "string"
+          },
+          "ruc": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruc"
+          },
+          "senave_registered": {
+            "default": false,
+            "title": "Senave Registered",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SupplierStatus",
+            "default": "active"
+          },
+          "supplier_id": {
+            "title": "Supplier Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "legal_name"
+        ],
+        "title": "Supplier",
+        "type": "object"
+      },
+      "SupplierCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "commercial_name": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Name"
+          },
+          "contact_email": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "contact_phone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Phone"
+          },
+          "country": {
+            "default": "PY",
+            "maxLength": 64,
+            "title": "Country",
+            "type": "string"
+          },
+          "is_importer": {
+            "default": false,
+            "title": "Is Importer",
+            "type": "boolean"
+          },
+          "iso_certified": {
+            "default": false,
+            "title": "Iso Certified",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "primary_categories": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Categories"
+          },
+          "primary_origin_countries": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Origin Countries"
+          },
+          "risk_tier": {
+            "default": "unknown",
+            "maxLength": 32,
+            "title": "Risk Tier",
+            "type": "string"
+          },
+          "ruc": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruc"
+          },
+          "senave_registered": {
+            "default": false,
+            "title": "Senave Registered",
+            "type": "boolean"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "legal_name"
+        ],
+        "title": "SupplierCreate",
+        "type": "object"
+      },
+      "SupplierStatus": {
+        "enum": [
+          "active",
+          "inactive"
+        ],
+        "title": "SupplierStatus",
+        "type": "string"
       },
       "TaskItem": {
         "properties": {
@@ -1362,8 +4595,24 @@
         "title": "TicketRunState",
         "type": "object"
       },
+      "Urgency": {
+        "enum": [
+          "normal",
+          "urgente",
+          "critica"
+        ],
+        "title": "Urgency",
+        "type": "string"
+      },
       "ValidationError": {
         "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
           "loc": {
             "items": {
               "anyOf": [
@@ -1394,15 +4643,714 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "WeatherComponents": {
+        "additionalProperties": false,
+        "properties": {
+          "excess_rain_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excess Rain Days"
+          },
+          "heat_stress_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Stress Days"
+          },
+          "max_temp_c": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Temp C"
+          },
+          "min_temp_c": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Temp C"
+          },
+          "precipitation_sum_mm": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precipitation Sum Mm"
+          }
+        },
+        "title": "WeatherComponents",
+        "type": "object"
+      },
+      "WeatherSnapshot": {
+        "additionalProperties": false,
+        "description": "A cached weather forecast for a Paraguayan department.",
+        "properties": {
+          "components": {
+            "$ref": "#/components/schemas/WeatherComponents"
+          },
+          "department": {
+            "title": "Department",
+            "type": "string"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "geo_lat": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Geo Lat",
+            "type": "string"
+          },
+          "geo_lng": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Geo Lng",
+            "type": "string"
+          },
+          "horizon_days": {
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "interpretation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretation"
+          },
+          "raw_response": {
+            "additionalProperties": true,
+            "title": "Raw Response",
+            "type": "object"
+          },
+          "risk_band": {
+            "enum": [
+              "low",
+              "moderate",
+              "moderate-high",
+              "high",
+              "extreme"
+            ],
+            "title": "Risk Band",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "open-meteo",
+            "title": "Source",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          },
+          "weather_risk_score": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Weather Risk Score",
+            "type": "string"
+          }
+        },
+        "required": [
+          "department",
+          "geo_lat",
+          "geo_lng",
+          "horizon_days",
+          "valid_until",
+          "weather_risk_score",
+          "risk_band"
+        ],
+        "title": "WeatherSnapshot",
+        "type": "object"
       }
     }
   },
   "info": {
-    "title": "AgroPredict AI Backend API v1",
+    "title": "AgroPredict AI \u2014 Multi-Agent Predictive Intelligence Platform API v1",
     "version": "v1"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/admission-exceptions/": {
+      "get": {
+        "operationId": "list_exceptions_api_v1_admin_admission_exceptions__get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "policy_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Policy Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionExceptionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Exceptions",
+        "tags": [
+          "admission-exceptions"
+        ]
+      },
+      "post": {
+        "operationId": "create_exception_api_v1_admin_admission_exceptions__post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdmissionExceptionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionExceptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Exception",
+        "tags": [
+          "admission-exceptions"
+        ]
+      }
+    },
+    "/api/v1/admin/admission-exceptions/{exception_id}": {
+      "delete": {
+        "operationId": "delete_exception_api_v1_admin_admission_exceptions__exception_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exception_id",
+            "required": true,
+            "schema": {
+              "title": "Exception Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Exception",
+        "tags": [
+          "admission-exceptions"
+        ]
+      },
+      "get": {
+        "operationId": "get_exception_api_v1_admin_admission_exceptions__exception_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exception_id",
+            "required": true,
+            "schema": {
+              "title": "Exception Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionExceptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Exception",
+        "tags": [
+          "admission-exceptions"
+        ]
+      }
+    },
+    "/api/v1/admin/admission-exceptions/{exception_id}/revoke": {
+      "post": {
+        "operationId": "revoke_exception_api_v1_admin_admission_exceptions__exception_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exception_id",
+            "required": true,
+            "schema": {
+              "title": "Exception Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdmissionExceptionRevoke"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionExceptionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Exception",
+        "tags": [
+          "admission-exceptions"
+        ]
+      }
+    },
     "/api/v1/admin/api-deprecations": {
       "get": {
         "operationId": "list_api_deprecations_api_v1_admin_api_deprecations_get",
@@ -1953,6 +5901,632 @@
         ]
       }
     },
+    "/api/v1/admin/webhook/ip-allowlist": {
+      "get": {
+        "operationId": "get_ip_allowlist_api_v1_admin_webhook_ip_allowlist_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Ip Allowlist",
+        "tags": [
+          "webhook-admin"
+        ]
+      },
+      "put": {
+        "operationId": "update_ip_allowlist_api_v1_admin_webhook_ip_allowlist_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": true,
+            "schema": {
+              "title": "X-Actor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllowlistUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowlistResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Ip Allowlist",
+        "tags": [
+          "webhook-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/webhook/rate-limit-rejections": {
+      "get": {
+        "operationId": "list_rate_limit_rejections_api_v1_admin_webhook_rate_limit_rejections_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ticket_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket Key"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Rate Limit Rejections Api V1 Admin Webhook Rate Limit Rejections Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rate Limit Rejections",
+        "tags": [
+          "webhook-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/webhook/rotate-secret": {
+      "post": {
+        "operationId": "rotate_secret_api_v1_admin_webhook_rotate_secret_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": true,
+            "schema": {
+              "title": "X-Actor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretRotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretRotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotate Secret",
+        "tags": [
+          "webhook-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/webhook/secret-rotation-status": {
+      "get": {
+        "operationId": "get_rotation_status_api_v1_admin_webhook_secret_rotation_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Team-Id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Team-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Role",
+            "required": false,
+            "schema": {
+              "default": "viewer",
+              "title": "X-Role",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Subject",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Subject",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Session",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Session",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Expires",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Expires",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Rotation Status Api V1 Admin Webhook Secret Rotation Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rotation Status",
+        "tags": [
+          "webhook-admin"
+        ]
+      }
+    },
+    "/api/v1/agents/health": {
+      "get": {
+        "operationId": "get_agent_health_api_v1_agents_health_get",
+        "parameters": [
+          {
+            "description": "Tenant ID for scoped metrics",
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID for scoped metrics",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Agent Health Api V1 Agents Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Agent Health",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/api/v1/auth/callback": {
       "get": {
         "operationId": "auth_callback_api_v1_auth_callback_get",
@@ -2003,6 +6577,560 @@
         "summary": "Auth Callback",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/billing/export": {
+      "get": {
+        "operationId": "export_billing_api_v1_billing_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "default": "v1",
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Billing",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/rate-cards": {
+      "get": {
+        "operationId": "list_rate_cards_api_v1_billing_rate_cards_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Rate Cards Api V1 Billing Rate Cards Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rate Cards",
+        "tags": [
+          "billing"
+        ]
+      },
+      "post": {
+        "operationId": "create_rate_card_api_v1_billing_rate_cards_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateCardCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Rate Card Api V1 Billing Rate Cards Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Rate Card",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/rate-cards/{rate_card_id}": {
+      "delete": {
+        "operationId": "delete_rate_card_api_v1_billing_rate_cards__rate_card_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_card_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Card Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rate Card",
+        "tags": [
+          "billing"
+        ]
+      },
+      "get": {
+        "operationId": "get_rate_card_api_v1_billing_rate_cards__rate_card_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_card_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Card Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Rate Card Api V1 Billing Rate Cards  Rate Card Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rate Card",
+        "tags": [
+          "billing"
+        ]
+      },
+      "patch": {
+        "operationId": "update_rate_card_api_v1_billing_rate_cards__rate_card_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_card_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Card Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateCardUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Update Rate Card Api V1 Billing Rate Cards  Rate Card Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Rate Card",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/rate-cards/{rate_card_id}/activate": {
+      "post": {
+        "operationId": "activate_rate_card_api_v1_billing_rate_cards__rate_card_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_card_id",
+            "required": true,
+            "schema": {
+              "title": "Rate Card Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Actor",
+            "required": true,
+            "schema": {
+              "title": "X-Actor",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Activate Rate Card Api V1 Billing Rate Cards  Rate Card Id  Activate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Rate Card",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/reconcile": {
+      "post": {
+        "operationId": "run_reconciliation_api_v1_billing_reconcile_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_start",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_end",
+            "required": true,
+            "schema": {
+              "format": "date-time",
+              "title": "Period End",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider_reported_total_usd",
+            "required": true,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                  "type": "string"
+                }
+              ],
+              "title": "Provider Reported Total Usd"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "default": "dry_run",
+              "pattern": "^(dry_run|enforce)$",
+              "title": "Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Run Reconciliation Api V1 Billing Reconcile Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Reconciliation",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/reconciliation-reports": {
+      "get": {
+        "operationId": "list_reconciliation_reports_api_v1_billing_reconciliation_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Reconciliation Reports Api V1 Billing Reconciliation Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reconciliation Reports",
+        "tags": [
+          "billing"
         ]
       }
     },
@@ -2177,6 +7305,1680 @@
         ]
       }
     },
+    "/api/v1/models": {
+      "get": {
+        "operationId": "list_models_api_v1_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Model"
+                  },
+                  "title": "Response List Models Api V1 Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "ml-models"
+        ]
+      },
+      "post": {
+        "operationId": "register_model_api_v1_models_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model_type",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ModelType"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "training_date",
+            "required": true,
+            "schema": {
+              "title": "Training Date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dataset_hash",
+            "required": true,
+            "schema": {
+              "title": "Dataset Hash",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_register_model_api_v1_models_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Model",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/active": {
+      "get": {
+        "operationId": "get_active_model_api_v1_models_active_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Model"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Active Model Api V1 Models Active Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Active Model",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/rollback": {
+      "post": {
+        "operationId": "rollback_api_v1_models_rollback_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rollback",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/validations": {
+      "post": {
+        "operationId": "create_validation_api_v1_models_validations_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "shadow_model_id",
+            "required": true,
+            "schema": {
+              "title": "Shadow Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelValidation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Validation",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/{model_id}/activate": {
+      "post": {
+        "operationId": "activate_model_api_v1_models__model_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Model",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/{model_id}/archive": {
+      "post": {
+        "operationId": "archive_model_api_v1_models__model_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Model",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/{model_id}/promote-to-active": {
+      "post": {
+        "operationId": "promote_to_active_api_v1_models__model_id__promote_to_active_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "promoted_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Promoted By"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote To Active",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/models/{model_id}/shadow": {
+      "post": {
+        "operationId": "promote_to_shadow_api_v1_models__model_id__shadow_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote To Shadow",
+        "tags": [
+          "ml-models"
+        ]
+      }
+    },
+    "/api/v1/predictions": {
+      "get": {
+        "operationId": "list_predictions_api_v1_predictions_get",
+        "parameters": [
+          {
+            "description": "Tenant ID for scoping",
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID for scoping",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by status (e.g., failed)",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status (e.g., failed)",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PredictionOutput"
+                  },
+                  "title": "Response List Predictions Api V1 Predictions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Predictions",
+        "tags": [
+          "predictions"
+        ]
+      },
+      "post": {
+        "description": "Enqueue a prediction run.\n\nReturns 202 with run_id and status_url. The result is available via the\nstatus endpoint once the worker completes.\nWhen Redis is unavailable, falls back to synchronous execution.",
+        "operationId": "create_prediction_api_v1_predictions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Prediction Api V1 Predictions Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Prediction",
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
+    "/api/v1/predictions/{prediction_id}": {
+      "get": {
+        "operationId": "get_prediction_api_v1_predictions__prediction_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prediction_id",
+            "required": true,
+            "schema": {
+              "title": "Prediction Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tenant ID for scoping",
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID for scoping",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Prediction",
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
+    "/api/v1/predictions/{run_id}/retry": {
+      "post": {
+        "description": "Re-enqueue a failed prediction from the dead letter queue.",
+        "operationId": "retry_prediction_api_v1_predictions__run_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tenant ID for scoping",
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID for scoping",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Retry Prediction Api V1 Predictions  Run Id  Retry Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Prediction",
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
+    "/api/v1/predictions/{run_id}/status": {
+      "get": {
+        "description": "Poll the status of an async prediction run.\n\nReturns the current node and progress. When completed, also includes\nthe full prediction output from PostgreSQL.",
+        "operationId": "get_prediction_status_api_v1_predictions__run_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Tenant ID for scoping",
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "description": "Tenant ID for scoping",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Prediction Status Api V1 Predictions  Run Id  Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Prediction Status",
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
+    "/api/v1/procurement/audit": {
+      "get": {
+        "operationId": "list_audit_api_v1_procurement_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProcurementAuditEvent"
+                  },
+                  "title": "Response List Audit Api V1 Procurement Audit Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audit",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/fx/usd_pyg": {
+      "get": {
+        "operationId": "fx_usd_pyg_api_v1_procurement_fx_usd_pyg_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FXRate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Fx Usd Pyg",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/fx/{base}/{quote}": {
+      "get": {
+        "operationId": "fx_pair_api_v1_procurement_fx__base___quote__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "base",
+            "required": true,
+            "schema": {
+              "title": "Base",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "quote",
+            "required": true,
+            "schema": {
+              "title": "Quote",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FXRate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fx Pair",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/quotations": {
+      "post": {
+        "operationId": "upload_quotation_api_v1_procurement_quotations_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "default": "system",
+              "title": "Actor",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quotation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Quotation",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/quotations/extract": {
+      "post": {
+        "operationId": "extract_quotation_api_v1_procurement_quotations_extract_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractedQuotation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Extract Quotation",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/quotations/{quotation_id}": {
+      "get": {
+        "operationId": "get_quotation_api_v1_procurement_quotations__quotation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quotation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quotation",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/quotations/{quotation_id}/negotiate": {
+      "post": {
+        "operationId": "negotiate_quotation_api_v1_procurement_quotations__quotation_id__negotiate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quotation_id",
+            "required": true,
+            "schema": {
+              "title": "Quotation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NegotiateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NegotiationMessage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Negotiate Quotation",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/requests": {
+      "get": {
+        "operationId": "list_requests_api_v1_procurement_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PurchaseRequest"
+                  },
+                  "title": "Response List Requests Api V1 Procurement Requests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Requests",
+        "tags": [
+          "procurement"
+        ]
+      },
+      "post": {
+        "operationId": "create_request_api_v1_procurement_requests_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "default": "system",
+              "title": "Actor",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/requests/{request_id}": {
+      "get": {
+        "operationId": "get_request_api_v1_procurement_requests__request_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/requests/{request_id}/quotations": {
+      "get": {
+        "operationId": "list_quotations_api_v1_procurement_requests__request_id__quotations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "only_validated",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Only Validated",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Quotation"
+                  },
+                  "title": "Response List Quotations Api V1 Procurement Requests  Request Id  Quotations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Quotations",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/requests/{request_id}/recommend": {
+      "post": {
+        "operationId": "recommend_request_api_v1_procurement_requests__request_id__recommend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recommend Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/requests/{request_id}/transition": {
+      "post": {
+        "operationId": "transition_request_api_v1_procurement_requests__request_id__transition_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "new_status",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PurchaseRequestStatus"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "default": "system",
+              "title": "Actor",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRequest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transition Request",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/suppliers": {
+      "get": {
+        "operationId": "list_suppliers_api_v1_procurement_suppliers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Supplier"
+                  },
+                  "title": "Response List Suppliers Api V1 Procurement Suppliers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Suppliers",
+        "tags": [
+          "procurement"
+        ]
+      },
+      "post": {
+        "operationId": "create_supplier_api_v1_procurement_suppliers_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "default": "system",
+              "title": "Actor",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Supplier"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Supplier",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/suppliers/{supplier_id}": {
+      "get": {
+        "operationId": "get_supplier_api_v1_procurement_suppliers__supplier_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "supplier_id",
+            "required": true,
+            "schema": {
+              "title": "Supplier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Supplier"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Supplier",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
+    "/api/v1/procurement/weather/risk": {
+      "get": {
+        "operationId": "weather_risk_api_v1_procurement_weather_risk_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "department",
+            "required": true,
+            "schema": {
+              "title": "Department",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "horizon_days",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 16,
+              "minimum": 1,
+              "title": "Horizon Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeatherSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Weather Risk",
+        "tags": [
+          "procurement"
+        ]
+      }
+    },
     "/api/v1/runs/{run_id}": {
       "get": {
         "operationId": "get_run_api_v1_runs__run_id__get",
@@ -2261,6 +9063,27 @@
         "summary": "Simulate Run",
         "tags": [
           "runtime"
+        ]
+      }
+    },
+    "/api/v1/status-page": {
+      "get": {
+        "operationId": "status_page_api_v1_status_page_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatusPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status Page",
+        "tags": [
+          "status"
         ]
       }
     },

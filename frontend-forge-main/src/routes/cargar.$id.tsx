@@ -2,10 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/agro/AppShell";
 import { Card } from "@/components/agro/Card";
 import { Pill } from "@/components/agro/Pill";
-import { SUPPLIERS } from "@/lib/agro/mock";
+import {
+  buildQuotationPayload,
+  procurementApi,
+  toUiSupplier,
+  type ExtractedQuotation,
+} from "@/lib/agro/api";
 import { fmtPYG } from "@/lib/agro/format";
+import type { Supplier } from "@/lib/agro/types";
 import { CheckCircle2, FileText, Loader2, Sparkles, Upload } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/cargar/$id")({
@@ -35,36 +41,70 @@ function CargarPage() {
   const { id } = Route.useParams();
   const [tab, setTab] = useState<"texto" | "archivo">("texto");
   const [text, setText] = useState(SAMPLE);
-  const [supplier, setSupplier] = useState(SUPPLIERS[0].id);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplier, setSupplier] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [step, setStep] = useState(0);
-  const [extracted, setExtracted] = useState<null | {
-    total: number;
-    delivery: number;
-    warranty: number;
-    terms: string;
-    items: { desc: string; qty: number; unit: string; price: number; conf: number }[];
-  }>(null);
+  const [extracted, setExtracted] = useState<ExtractedQuotation | null>(null);
 
   const messages = ["Analizando con IA…", "Detectando moneda y plazos…", "Validando datos…"];
 
+  useEffect(() => {
+    procurementApi
+      .listSuppliers()
+      .then((rows) => {
+        const mapped = rows.map(toUiSupplier);
+        setSuppliers(mapped);
+        setSupplier((current) => current || mapped[0]?.id || "");
+      })
+      .catch((err: Error) => toast.error(err.message));
+  }, []);
+
   async function process() {
+    if (!text.trim()) {
+      toast.error("Paste quotation text before processing");
+      return;
+    }
     setLoading(true);
     setStep(0);
-    for (let i = 0; i < messages.length; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      setStep(i);
+    try {
+      for (let i = 0; i < messages.length; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        setStep(i);
+      }
+      const result = await procurementApi.extractQuotation(id, text);
+      setExtracted(result);
+      toast.success("Quotation extracted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not extract quotation");
+    } finally {
+      setLoading(false);
     }
-    setExtracted({
-      total: 3_720_000_000,
-      delivery: 12,
-      warranty: 6,
-      terms: "30/60 días sin recargo",
-      items: [
-        { desc: "Urea granulada 46% N", qty: 800, unit: "ton", price: 4_650_000, conf: 0.96 },
-      ],
-    });
-    setLoading(false);
+  }
+
+  async function saveQuotation() {
+    if (!supplier) {
+      toast.error("Register or select a supplier first");
+      return;
+    }
+    if (!extracted) return;
+    setSaving(true);
+    try {
+      await procurementApi.uploadQuotation(
+        buildQuotationPayload({
+          requestId: id,
+          supplierId: supplier,
+          rawText: text,
+          extracted,
+        }),
+      );
+      toast.success("Quotation saved and validated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save quotation");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -128,18 +168,28 @@ function CargarPage() {
                 onChange={(e) => setSupplier(e.target.value)}
                 className="w-full rounded-lg bg-background border border-input px-3 py-2 text-sm"
               >
-                {SUPPLIERS.map((s) => (
-                  <option key={s.id} value={s.id}>{s.legal_name}</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.legal_name}
+                  </option>
                 ))}
-                <option value="new">+ Nuevo proveedor</option>
               </select>
+              {suppliers.length === 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Register suppliers on the supplier page before saving quotations.
+                </p>
+              )}
             </div>
             <button
               onClick={process}
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow disabled:opacity-60"
             >
-              {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />}
+              {loading ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-4" aria-hidden />
+              )}
               {loading ? messages[step] : "Procesar con IA"}
             </button>
           </div>
@@ -156,10 +206,27 @@ function CargarPage() {
           ) : (
             <div className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <Editable label="Total (Gs.)" value={fmtPYG(extracted.total)} conf={0.98} />
-                <Editable label="Plazo (días)" value={String(extracted.delivery)} conf={0.95} />
-                <Editable label="Garantía (meses)" value={String(extracted.warranty)} conf={0.71} low />
-                <Editable label="Condiciones de pago" value={extracted.terms} conf={0.88} />
+                <Editable
+                  label="Total"
+                  value={`${extracted.currency} ${Number(extracted.total_amount).toLocaleString("es-PY")}`}
+                  conf={Number(extracted.extraction_confidence)}
+                />
+                <Editable
+                  label="Plazo (días)"
+                  value={String(extracted.lead_time_days)}
+                  conf={Number(extracted.extraction_confidence)}
+                />
+                <Editable
+                  label="Garantía (meses)"
+                  value={String(extracted.warranty_months ?? "-")}
+                  conf={Number(extracted.extraction_confidence)}
+                  low={Number(extracted.extraction_confidence) < 0.75}
+                />
+                <Editable
+                  label="Condiciones de pago"
+                  value={extracted.payment_terms ?? "-"}
+                  conf={Number(extracted.extraction_confidence)}
+                />
               </div>
               <div>
                 <div className="text-[12px] font-semibold mb-1.5 text-foreground">Items</div>
@@ -167,21 +234,35 @@ function CargarPage() {
                   {extracted.items.map((it, i) => (
                     <div key={i} className="px-3 py-2 text-sm flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{it.desc}</div>
+                        <div className="font-medium">{it.description}</div>
                         <div className="text-xs text-muted-foreground">
-                          {it.qty.toLocaleString("es-PY")} {it.unit} · {fmtPYG(it.price)}/{it.unit}
+                          {Number(it.quantity).toLocaleString("es-PY")} unit ·{" "}
+                          {fmtPYG(Number(it.unit_price))}/unit
                         </div>
                       </div>
-                      <Pill tone="success">conf {Math.round(it.conf * 100)}%</Pill>
+                      <Pill tone="success">
+                        conf {Math.round(Number(extracted.extraction_confidence) * 100)}%
+                      </Pill>
                     </div>
                   ))}
+                  {extracted.items.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No line items detected. The quotation can still be saved with total and terms.
+                    </div>
+                  )}
                 </div>
               </div>
               <button
-                onClick={() => toast.success("Cotización guardada y validada")}
+                onClick={saveQuotation}
+                disabled={saving}
                 className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow"
               >
-                <CheckCircle2 className="size-4" aria-hidden /> Confirmar y guardar
+                {saving ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <CheckCircle2 className="size-4" aria-hidden />
+                )}
+                Confirmar y guardar
               </button>
             </div>
           )}
@@ -208,7 +289,9 @@ function Editable({
         <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </label>
-        <span className={`text-[10px] font-semibold ${low ? "text-warning-foreground" : "text-success"}`}>
+        <span
+          className={`text-[10px] font-semibold ${low ? "text-warning-foreground" : "text-success"}`}
+        >
           {Math.round(conf * 100)}%
         </span>
       </div>

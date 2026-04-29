@@ -3,15 +3,11 @@ import { AppShell } from "@/components/agro/AppShell";
 import { Card } from "@/components/agro/Card";
 import { Kpi } from "@/components/agro/Kpi";
 import { Pill } from "@/components/agro/Pill";
+import { procurementApi, toUiRequest, toUiSupplier } from "@/lib/agro/api";
 import { fmtPYG } from "@/lib/agro/format";
-import { SUPPLIERS } from "@/lib/agro/mock";
-import {
-  AlertTriangle,
-  Briefcase,
-  Clock,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import type { PurchaseRequest, Supplier } from "@/lib/agro/types";
+import { AlertTriangle, Briefcase, Clock, TrendingDown, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Cell,
@@ -67,6 +63,30 @@ const COLORS = [
 ];
 
 function DashboardPage() {
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    Promise.all([procurementApi.listRequests(), procurementApi.listSuppliers()])
+      .then(([requestRows, supplierRows]) => {
+        setRequests(requestRows.map(toUiRequest));
+        setSuppliers(supplierRows.map(toUiSupplier));
+      })
+      .catch(() => {
+        setRequests([]);
+        setSuppliers([]);
+      });
+  }, []);
+
+  const activeSpend = useMemo(
+    () =>
+      requests
+        .filter((r) => r.status !== "cerrada")
+        .reduce((sum, r) => sum + r.total_estimated_pyg, 0),
+    [requests],
+  );
+  const recommendedCount = requests.filter((r) => r.status === "recomendada").length;
+
   return (
     <AppShell>
       <div className="mb-5">
@@ -78,22 +98,33 @@ function DashboardPage() {
         <AlertTriangle className="size-5 text-warning shrink-0" aria-hidden />
         <div className="text-sm">
           <span className="font-semibold text-foreground">1 anomalía detectada este mes</span>
-          <span className="text-muted-foreground"> · Atlantic Comercio: precio 18% bajo mercado en cotización de urea.</span>
+          <span className="text-muted-foreground">
+            {" "}
+            · Atlantic Comercio: precio 18% bajo mercado en cotización de urea.
+          </span>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Kpi
           label="Comprado este mes"
-          value={fmtPYG(4_210_000_000)}
-          sub={<span className="inline-flex items-center gap-1 text-success"><TrendingUp className="size-3" /> +18% vs mes anterior</span>}
+          value={fmtPYG(activeSpend)}
+          sub={
+            <span className="inline-flex items-center gap-1 text-success">
+              <TrendingUp className="size-3" /> +18% vs mes anterior
+            </span>
+          }
           icon={<Briefcase className="size-5" />}
           tone="primary"
         />
         <Kpi
           label="Ahorro vs presupuesto"
           value="7.2%"
-          sub={<span className="inline-flex items-center gap-1 text-success"><TrendingDown className="size-3" /> Gs. 318 M ahorrados</span>}
+          sub={
+            <span className="inline-flex items-center gap-1 text-success">
+              <TrendingDown className="size-3" /> Gs. 318 M ahorrados
+            </span>
+          }
           icon={<TrendingDown className="size-5" />}
           tone="success"
         />
@@ -106,8 +137,8 @@ function DashboardPage() {
         />
         <Kpi
           label="Solicitudes adjudicadas"
-          value={42}
-          sub="últimos 90 días"
+          value={recommendedCount}
+          sub="recomendadas"
           icon={<Briefcase className="size-5" />}
           tone="earth"
         />
@@ -128,9 +159,24 @@ function DashboardPage() {
                     <stop offset="100%" stopColor="oklch(0.66 0.17 150)" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="oklch(0.9 0.015 130)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="m" tickLine={false} axisLine={false} stroke="oklch(0.48 0.02 140)" fontSize={12} />
-                <YAxis tickLine={false} axisLine={false} stroke="oklch(0.48 0.02 140)" fontSize={12} />
+                <CartesianGrid
+                  stroke="oklch(0.9 0.015 130)"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="m"
+                  tickLine={false}
+                  axisLine={false}
+                  stroke="oklch(0.48 0.02 140)"
+                  fontSize={12}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  stroke="oklch(0.48 0.02 140)"
+                  fontSize={12}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "oklch(1 0 0)",
@@ -139,7 +185,14 @@ function DashboardPage() {
                     fontSize: 12,
                   }}
                 />
-                <Line type="monotone" dataKey="v" stroke="url(#g)" strokeWidth={3} dot={{ r: 3, fill: "oklch(0.52 0.14 152)" }} activeDot={{ r: 5 }} />
+                <Line
+                  type="monotone"
+                  dataKey="v"
+                  stroke="url(#g)"
+                  strokeWidth={3}
+                  dot={{ r: 3, fill: "oklch(0.52 0.14 152)" }}
+                  activeDot={{ r: 5 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -150,7 +203,14 @@ function DashboardPage() {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={PIE} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
+                <Pie
+                  data={PIE}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={90}
+                  paddingAngle={2}
+                >
                   {PIE.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="transparent" />
                   ))}
@@ -171,7 +231,8 @@ function DashboardPage() {
             {PIE.map((p, i) => (
               <li key={p.name} className="flex items-center gap-1.5 text-muted-foreground">
                 <span className="size-2 rounded-sm" style={{ background: COLORS[i] }} aria-hidden />
-                {p.name} <span className="ml-auto tabular text-foreground font-semibold">{p.value}%</span>
+                {p.name}{" "}
+                <span className="ml-auto tabular text-foreground font-semibold">{p.value}%</span>
               </li>
             ))}
           </ul>
@@ -184,18 +245,23 @@ function DashboardPage() {
             Top 5 proveedores adjudicados
           </div>
           <ul className="divide-y divide-border">
-            {[...SUPPLIERS].sort((a, b) => b.awards - a.awards).slice(0, 5).map((s, i) => (
-              <li key={s.id} className="px-5 py-3 flex items-center gap-3">
-                <span className="size-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-foreground truncate">{s.legal_name}</div>
-                  <div className="text-xs text-muted-foreground">{s.primary_categories.join(" · ")}</div>
-                </div>
-                <div className="tabular font-bold text-foreground">{s.awards}</div>
-              </li>
-            ))}
+            {[...suppliers]
+              .sort((a, b) => b.awards - a.awards)
+              .slice(0, 5)
+              .map((s, i) => (
+                <li key={s.id} className="px-5 py-3 flex items-center gap-3">
+                  <span className="size-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-foreground truncate">{s.legal_name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {s.primary_categories.join(" · ")}
+                    </div>
+                  </div>
+                  <div className="tabular font-bold text-foreground">{s.awards}</div>
+                </li>
+              ))}
           </ul>
         </Card>
 
@@ -204,20 +270,31 @@ function DashboardPage() {
             Top 5 proveedores con mejor ML score
           </div>
           <ul className="divide-y divide-border">
-            {[...SUPPLIERS].sort((a, b) => b.ml_p_on_time - a.ml_p_on_time).slice(0, 5).map((s, i) => (
-              <li key={s.id} className="px-5 py-3 flex items-center gap-3">
-                <span className="size-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-foreground truncate">{s.legal_name}</div>
-                  <div className="text-xs text-muted-foreground">RUC {s.ruc}</div>
-                </div>
-                <Pill tone={s.ml_p_on_time >= 0.8 ? "success" : s.ml_p_on_time >= 0.6 ? "warning" : "danger"}>
-                  {Math.round(s.ml_p_on_time * 100)}
-                </Pill>
-              </li>
-            ))}
+            {[...suppliers]
+              .sort((a, b) => b.ml_p_on_time - a.ml_p_on_time)
+              .slice(0, 5)
+              .map((s, i) => (
+                <li key={s.id} className="px-5 py-3 flex items-center gap-3">
+                  <span className="size-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-foreground truncate">{s.legal_name}</div>
+                    <div className="text-xs text-muted-foreground">RUC {s.ruc}</div>
+                  </div>
+                  <Pill
+                    tone={
+                      s.ml_p_on_time >= 0.8
+                        ? "success"
+                        : s.ml_p_on_time >= 0.6
+                          ? "warning"
+                          : "danger"
+                    }
+                  >
+                    {Math.round(s.ml_p_on_time * 100)}
+                  </Pill>
+                </li>
+              ))}
           </ul>
         </Card>
       </div>

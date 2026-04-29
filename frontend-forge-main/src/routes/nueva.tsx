@@ -1,11 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { AppShell } from "@/components/agro/AppShell";
 import { Card } from "@/components/agro/Card";
 import { Pill } from "@/components/agro/Pill";
+import { buildRequestPayload, procurementApi } from "@/lib/agro/api";
 import { fmtPYG } from "@/lib/agro/format";
 import type { Weights } from "@/lib/agro/types";
 import { useState } from "react";
-import { Plus, Save, Send, Trash2 } from "lucide-react";
+import { Loader2, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/nueva")({
@@ -28,6 +29,19 @@ interface ItemRow {
 }
 
 function NuevaPage() {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Fertilizante");
+  const [crop, setCrop] = useState("Soja");
+  const [zafra, setZafra] = useState("2026/27");
+  const [fenologicalWindow, setFenologicalWindow] = useState("");
+  const [hectares, setHectares] = useState(0);
+  const [department, setDepartment] = useState("Itapúa");
+  const [deadline, setDeadline] = useState("");
+  const [budget, setBudget] = useState(0);
+  const [urgency, setUrgency] = useState("media");
+  const [saving, setSaving] = useState(false);
   const [weights, setWeights] = useState<Weights>({
     precio: 40,
     plazo: 25,
@@ -43,6 +57,50 @@ function NuevaPage() {
 
   const subtotal = items.reduce((s, i) => s + i.qty * i.target, 0);
 
+  async function publish(status: "draft" | "in_quoting") {
+    if (!title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+    if (!ok) {
+      toast.error("Criteria weights must total 100");
+      return;
+    }
+    if (!items.some((item) => item.description.trim() && item.qty > 0)) {
+      toast.error("Add at least one item with quantity");
+      return;
+    }
+    setSaving(true);
+    try {
+      const created = await procurementApi.createRequest(
+        buildRequestPayload({
+          title,
+          description,
+          category,
+          crop,
+          zafra,
+          fenologicalWindow,
+          hectares,
+          department,
+          deadline,
+          budget: budget || subtotal,
+          urgency,
+          weights,
+          items,
+        }),
+      );
+      if (status === "in_quoting") {
+        await procurementApi.transitionRequest(created.request_id, "in_quoting");
+      }
+      toast.success(status === "draft" ? "Draft saved" : "Purchase request published");
+      router.navigate({ to: "/solicitud/$id", params: { id: created.request_id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save request");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <AppShell>
       <div className="mb-5">
@@ -55,13 +113,28 @@ function NuevaPage() {
       <div className="space-y-5">
         <Section title="Datos generales">
           <Field label="Título">
-            <input className={inputCls} placeholder="Ej.: Compra de urea 46% para zafra 26/27" />
+            <input
+              className={inputCls}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej.: Compra de urea 46% para zafra 26/27"
+            />
           </Field>
           <Field label="Descripción" full>
-            <textarea rows={2} className={inputCls} placeholder="Contexto y motivación…" />
+            <textarea
+              rows={2}
+              className={inputCls}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Contexto y motivación…"
+            />
           </Field>
           <Field label="Categoría">
-            <select className={inputCls}>
+            <select
+              className={inputCls}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
               <option>Fertilizante</option>
               <option>Semilla</option>
               <option>Fitosanitario</option>
@@ -74,7 +147,7 @@ function NuevaPage() {
 
         <Section title="Contexto agronómico">
           <Field label="Cultivo destino">
-            <select className={inputCls}>
+            <select className={inputCls} value={crop} onChange={(e) => setCrop(e.target.value)}>
               <option>Soja</option>
               <option>Maíz</option>
               <option>Trigo</option>
@@ -82,16 +155,31 @@ function NuevaPage() {
             </select>
           </Field>
           <Field label="Zafra">
-            <input className={inputCls} defaultValue="2026/27" />
+            <input className={inputCls} value={zafra} onChange={(e) => setZafra(e.target.value)} />
           </Field>
           <Field label="Ventana fenológica">
-            <input className={inputCls} placeholder="Ej.: V4 — V6" />
+            <input
+              className={inputCls}
+              value={fenologicalWindow}
+              onChange={(e) => setFenologicalWindow(e.target.value)}
+              placeholder="Ej.: V4 — V6"
+            />
           </Field>
           <Field label="Hectáreas a cubrir">
-            <input type="number" className={inputCls} placeholder="0" />
+            <input
+              type="number"
+              className={inputCls}
+              value={hectares || ""}
+              onChange={(e) => setHectares(Number(e.target.value))}
+              placeholder="0"
+            />
           </Field>
           <Field label="Departamento de entrega">
-            <select className={inputCls}>
+            <select
+              className={inputCls}
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            >
               <option>Itapúa</option>
               <option>Alto Paraná</option>
               <option>Caaguazú</option>
@@ -103,16 +191,33 @@ function NuevaPage() {
 
         <Section title="Plazo y presupuesto">
           <Field label="Fecha límite">
-            <input type="date" className={inputCls} />
+            <input
+              type="date"
+              className={inputCls}
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+            />
           </Field>
           <Field label="Presupuesto estimado (Gs.)">
-            <input type="number" className={inputCls} placeholder="0" />
+            <input
+              type="number"
+              className={inputCls}
+              value={budget || ""}
+              onChange={(e) => setBudget(Number(e.target.value))}
+              placeholder="0"
+            />
           </Field>
           <Field label="Urgencia" full>
             <div className="flex flex-wrap gap-2">
               {(["baja", "media", "alta", "critica"] as const).map((u) => (
                 <label key={u} className="cursor-pointer">
-                  <input type="radio" name="urgency" className="peer sr-only" />
+                  <input
+                    type="radio"
+                    name="urgency"
+                    checked={urgency === u}
+                    onChange={() => setUrgency(u)}
+                    className="peer sr-only"
+                  />
                   <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium peer-checked:bg-primary peer-checked:text-primary-foreground peer-checked:border-primary capitalize">
                     {u === "critica" ? "Crítica" : u}
                   </span>
@@ -194,7 +299,9 @@ function NuevaPage() {
                         value={it.description}
                         onChange={(e) =>
                           setItems((arr) =>
-                            arr.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x)),
+                            arr.map((x, i) =>
+                              i === idx ? { ...x, description: e.target.value } : x,
+                            ),
                           )
                         }
                       />
@@ -206,7 +313,9 @@ function NuevaPage() {
                         value={it.qty || ""}
                         onChange={(e) =>
                           setItems((arr) =>
-                            arr.map((x, i) => (i === idx ? { ...x, qty: Number(e.target.value) } : x)),
+                            arr.map((x, i) =>
+                              i === idx ? { ...x, qty: Number(e.target.value) } : x,
+                            ),
                           )
                         }
                       />
@@ -240,7 +349,9 @@ function NuevaPage() {
                         value={it.target || ""}
                         onChange={(e) =>
                           setItems((arr) =>
-                            arr.map((x, i) => (i === idx ? { ...x, target: Number(e.target.value) } : x)),
+                            arr.map((x, i) =>
+                              i === idx ? { ...x, target: Number(e.target.value) } : x,
+                            ),
                           )
                         }
                       />
@@ -260,10 +371,15 @@ function NuevaPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t border-border">
-                  <td colSpan={4} className="px-3 py-3 text-right text-sm font-semibold text-muted-foreground">
+                  <td
+                    colSpan={4}
+                    className="px-3 py-3 text-right text-sm font-semibold text-muted-foreground"
+                  >
                     Subtotal estimado
                   </td>
-                  <td className="px-3 py-3 font-bold tabular text-foreground">{fmtPYG(subtotal)}</td>
+                  <td className="px-3 py-3 font-bold tabular text-foreground">
+                    {fmtPYG(subtotal)}
+                  </td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -274,18 +390,30 @@ function NuevaPage() {
         <div className="sticky bottom-0 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-background/90 backdrop-blur border-t border-border flex items-center justify-end gap-3">
           <button
             type="button"
-            onClick={() => toast.success("Borrador guardado")}
+            onClick={() => publish("draft")}
+            disabled={saving}
             className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/70"
           >
-            <Save className="size-4" aria-hidden /> Guardar borrador
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="size-4" aria-hidden />
+            )}
+            Guardar borrador
           </button>
-          <Link
-            to="/"
-            onClick={() => toast.success("Solicitud publicada — los proveedores serán notificados")}
+          <button
+            type="button"
+            onClick={() => publish("in_quoting")}
+            disabled={saving}
             className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow"
           >
-            <Send className="size-4" aria-hidden /> Publicar solicitud
-          </Link>
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Send className="size-4" aria-hidden />
+            )}
+            Publicar solicitud
+          </button>
         </div>
       </div>
     </AppShell>

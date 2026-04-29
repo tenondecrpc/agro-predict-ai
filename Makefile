@@ -165,7 +165,7 @@ local-up:
 	@docker compose ps
 	@echo ""
 	@echo "Infrastructure base and worker are ready:"
-	@echo "  PostgreSQL: postgresql://dev:dev@localhost:5432/agropredict"
+	@echo "  PostgreSQL: postgresql://dev:dev@localhost:5436/agropredict"
 	@echo "  Redis:      redis://localhost:6379/0"
 	@echo ""
 	@echo "NOTE: This covers persistence and queues only."
@@ -206,14 +206,15 @@ dev-backend:
 		fi; \
 		if [ -z "$$BACKEND_DATABASE_URL" ]; then \
 			echo "Auto-wiring BACKEND_DATABASE_URL to local PostgreSQL (run: make local-up)"; \
-			export BACKEND_DATABASE_URL="postgresql://dev:dev@localhost:5432/agropredict"; \
+			export BACKEND_DATABASE_URL="postgresql://dev:dev@localhost:5436/agropredict"; \
 		fi; \
 		if [ -z "$$BACKEND_REDIS_URL" ]; then \
 			echo "Auto-wiring BACKEND_REDIS_URL to local Redis (run: make local-up)"; \
 			export BACKEND_REDIS_URL="redis://localhost:6379/0"; \
 		fi; \
+		unset VIRTUAL_ENV PYTHONPATH PYTHONHOME UV_PROJECT_ENVIRONMENT UV_NO_SYNC; \
 		echo ""; \
-		uv run --project backend uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload \
+		uv run --project backend python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload \
 	'
 
 dev-frontend:
@@ -232,13 +233,14 @@ dev-worker:
 			export BACKEND_WEBHOOK_SHARED_SECRET=$$(python3 -c "import secrets; print(secrets.token_urlsafe(32))"); \
 		fi; \
 		if [ -z "$$BACKEND_DATABASE_URL" ]; then \
-			export BACKEND_DATABASE_URL="postgresql://dev:dev@localhost:5432/agropredict"; \
+			export BACKEND_DATABASE_URL="postgresql://dev:dev@localhost:5436/agropredict"; \
 		fi; \
 		if [ -z "$$BACKEND_REDIS_URL" ]; then \
 			export BACKEND_REDIS_URL="redis://localhost:6379/0"; \
 		fi; \
 		export BACKEND_WORKER_CONTROLLER_MODE=redis; \
-		uv run --project backend arq backend.worker.WorkerSettings \
+		unset VIRTUAL_ENV PYTHONPATH PYTHONHOME UV_PROJECT_ENVIRONMENT UV_NO_SYNC; \
+		uv run --project backend python -m arq backend.worker.WorkerSettings \
 	'
 
 local-worker-up:

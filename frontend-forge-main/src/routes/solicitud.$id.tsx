@@ -2,11 +2,26 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { AppShell } from "@/components/agro/AppShell";
 import { Card } from "@/components/agro/Card";
 import { Pill } from "@/components/agro/Pill";
-import { CropIcon, MlBand, StatusPill, UrgencyPill, WeatherBadge } from "@/components/agro/agro-pills";
-import { QUOTATIONS, REQUESTS, SUPPLIERS } from "@/lib/agro/mock";
+import {
+  CropIcon,
+  MlBand,
+  StatusPill,
+  UrgencyPill,
+  WeatherBadge,
+} from "@/components/agro/agro-pills";
+import { procurementApi, toUiQuotation, toUiRequest, toUiSupplier } from "@/lib/agro/api";
 import { daysUntil, fmtDate, fmtPYG } from "@/lib/agro/format";
-import { AlertTriangle, ArrowRight, Calendar, MapPin, Package, Sparkles, Upload } from "lucide-react";
-import { useState } from "react";
+import type { PurchaseRequest, Quotation, Supplier } from "@/lib/agro/types";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Calendar,
+  MapPin,
+  Package,
+  Sparkles,
+  Upload,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/solicitud/$id")({
@@ -27,12 +42,74 @@ export const Route = createFileRoute("/solicitud/$id")({
 function DetallePage() {
   const { id } = Route.useParams();
   const router = useRouter();
-  const req = REQUESTS.find((r) => r.id === id);
-  const quotes = QUOTATIONS.filter((q) => q.request_id === id);
+  const [req, setReq] = useState<PurchaseRequest | null>(null);
+  const [quotes, setQuotes] = useState<Quotation[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const validated = quotes.filter((q) => q.status === "validada").length;
   const [compared, setCompared] = useState(false);
+  const suppliersById = useMemo(
+    () => new Map(suppliers.map((supplier) => [supplier.id, supplier])),
+    [suppliers],
+  );
 
-  if (!req) return <AppShell><Card className="p-8 text-center">Solicitud no encontrada.</Card></AppShell>;
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    Promise.all([
+      procurementApi.getRequest(id),
+      procurementApi.listQuotations(id),
+      procurementApi.listSuppliers(),
+    ])
+      .then(([request, quotations, supplierRows]) => {
+        if (!active) return;
+        setReq(toUiRequest(request));
+        setQuotes(quotations.map(toUiQuotation));
+        setSuppliers(supplierRows.map(toUiSupplier));
+        setError(null);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  async function markReady() {
+    if (validated < 2) return;
+    try {
+      await procurementApi.transitionRequest(id, "ready_for_review");
+      setCompared(true);
+      toast.success("Quotations normalized and ready for recommendation");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not compare quotations");
+    }
+  }
+
+  if (loading)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center">Loading request...</Card>
+      </AppShell>
+    );
+  if (error)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center text-destructive">{error}</Card>
+      </AppShell>
+    );
+  if (!req)
+    return (
+      <AppShell>
+        <Card className="p-8 text-center">Solicitud no encontrada.</Card>
+      </AppShell>
+    );
 
   return (
     <AppShell>
@@ -58,10 +135,26 @@ function DetallePage() {
             <h2 className="text-xl font-bold tracking-tight text-foreground">{req.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{req.description}</p>
             <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-              <Info icon={<Calendar className="size-4" aria-hidden />} label="Fecha límite" value={`${fmtDate(req.deadline)} · ${daysUntil(req.deadline)} días`} />
-              <Info icon={<MapPin className="size-4" aria-hidden />} label="Departamento" value={req.department} />
-              <Info icon={<Package className="size-4" aria-hidden />} label="Hectáreas" value={req.hectares.toLocaleString("es-PY")} />
-              <Info icon={<Sparkles className="size-4" aria-hidden />} label="Presupuesto" value={fmtPYG(req.budget_pyg)} />
+              <Info
+                icon={<Calendar className="size-4" aria-hidden />}
+                label="Fecha límite"
+                value={`${fmtDate(req.deadline)} · ${daysUntil(req.deadline)} días`}
+              />
+              <Info
+                icon={<MapPin className="size-4" aria-hidden />}
+                label="Departamento"
+                value={req.department}
+              />
+              <Info
+                icon={<Package className="size-4" aria-hidden />}
+                label="Hectáreas"
+                value={req.hectares.toLocaleString("es-PY")}
+              />
+              <Info
+                icon={<Sparkles className="size-4" aria-hidden />}
+                label="Presupuesto"
+                value={fmtPYG(req.budget_pyg)}
+              />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <WeatherBadge />
@@ -81,7 +174,9 @@ function DetallePage() {
                       {it.qty.toLocaleString("es-PY")} {it.unit}
                     </span>
                     <span className="text-muted-foreground">·</span>
-                    <span className="text-muted-foreground">target {fmtPYG(it.target_price_pyg)}/{it.unit}</span>
+                    <span className="text-muted-foreground">
+                      target {fmtPYG(it.target_price_pyg)}/{it.unit}
+                    </span>
                   </div>
                 </li>
               ))}
@@ -110,7 +205,8 @@ function DetallePage() {
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">
-              Cotizaciones <span className="text-muted-foreground font-normal">({quotes.length})</span>
+              Cotizaciones{" "}
+              <span className="text-muted-foreground font-normal">({quotes.length})</span>
             </h3>
             <Link
               to="/cargar/$id"
@@ -136,12 +232,12 @@ function DetallePage() {
                 </thead>
                 <tbody>
                   {quotes.map((q) => {
-                    const sup = SUPPLIERS.find((s) => s.id === q.supplier_id)!;
+                    const sup = suppliersById.get(q.supplier_id);
                     return (
                       <tr key={q.id} className="border-t border-border hover:bg-secondary/30">
                         <td className="px-4 py-3">
                           <div className="font-semibold text-foreground flex items-center gap-2">
-                            {sup.legal_name}
+                            {sup?.legal_name ?? q.supplier_id}
                             {q.anomaly && (
                               <span
                                 className="inline-flex items-center gap-1 text-warning-foreground"
@@ -152,12 +248,18 @@ function DetallePage() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">RUC {sup.ruc}</div>
+                          <div className="text-xs text-muted-foreground">
+                            RUC {sup?.ruc ?? "N/A"}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold tabular">{fmtPYG(q.total_pyg)}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular">
+                          {fmtPYG(q.total_pyg)}
+                        </td>
                         <td className="px-4 py-3 tabular">{q.delivery_days} días</td>
                         <td className="px-4 py-3 tabular">{q.warranty_months} m</td>
-                        <td className="px-4 py-3"><MlBand score={q.ml_score} /></td>
+                        <td className="px-4 py-3">
+                          <MlBand score={q.ml_score} />
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <ArrowRight className="size-4 text-muted-foreground inline" aria-hidden />
                         </td>
@@ -193,10 +295,7 @@ function DetallePage() {
         <button
           type="button"
           disabled={validated < 2}
-          onClick={() => {
-            setCompared(true);
-            toast.success("Cotizaciones comparadas y normalizadas");
-          }}
+          onClick={markReady}
           className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground hover:bg-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Comparar cotizaciones
@@ -204,7 +303,7 @@ function DetallePage() {
         <Link
           to="/comparar/$id"
           params={{ id: req.id }}
-          aria-disabled={!compared && validated < 4}
+          aria-disabled={!compared && validated < 2}
           className="inline-flex items-center gap-2 rounded-lg bg-primary-gradient px-4 py-2 text-sm font-semibold text-primary-foreground shadow-soft hover:shadow-glow"
         >
           <Sparkles className="size-4" aria-hidden /> Generar recomendación

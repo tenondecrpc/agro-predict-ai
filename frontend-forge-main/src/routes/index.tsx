@@ -4,17 +4,11 @@ import { Card } from "@/components/agro/Card";
 import { Kpi } from "@/components/agro/Kpi";
 import { Pill } from "@/components/agro/Pill";
 import { CropIcon, StatusPill, UrgencyPill } from "@/components/agro/agro-pills";
-import { REQUESTS } from "@/lib/agro/mock";
+import { procurementApi, toUiRequest } from "@/lib/agro/api";
 import { daysUntil, fmtPYG } from "@/lib/agro/format";
-import {
-  ArrowRight,
-  Briefcase,
-  CheckSquare,
-  Clock,
-  FileText,
-  Search,
-} from "lucide-react";
-import { useMemo, useState } from "react";
+import type { PurchaseRequest } from "@/lib/agro/types";
+import { ArrowRight, Briefcase, CheckSquare, Clock, FileText, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,35 +26,57 @@ function InboxPage() {
   const [crop, setCrop] = useState<string>("todos");
   const [urgency, setUrgency] = useState<string>("todas");
   const [q, setQ] = useState("");
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    procurementApi
+      .listRequests()
+      .then((rows) => {
+        if (!active) return;
+        setRequests(rows.map(toUiRequest));
+        setError(null);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    return REQUESTS.filter((r) => {
+    return requests.filter((r) => {
       if (crop !== "todos" && r.crop !== crop) return false;
       if (urgency !== "todas" && r.urgency !== urgency) return false;
       if (q && !r.title.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     });
-  }, [crop, urgency, q]);
+  }, [crop, requests, urgency, q]);
 
   const kpis = useMemo(() => {
-    const monto = REQUESTS.filter((r) => r.status !== "cerrada").reduce(
-      (s, r) => s + r.total_estimated_pyg,
-      0,
-    );
+    const monto = requests
+      .filter((r) => r.status !== "cerrada")
+      .reduce((s, r) => s + r.total_estimated_pyg, 0);
     return {
-      activas: REQUESTS.filter((r) => r.status !== "cerrada" && r.status !== "borrador").length,
+      activas: requests.filter((r) => r.status !== "cerrada" && r.status !== "borrador").length,
       monto,
-      pendientes: REQUESTS.filter((r) => r.status === "recomendada").length || 1,
+      pendientes: requests.filter((r) => r.status === "recomendada").length,
       avgDias: 8.4,
     };
-  }, []);
+  }, [requests]);
 
   return (
     <AppShell>
       <div className="flex items-center gap-3 mb-5">
-        <h2 className="text-xl font-bold tracking-tight text-foreground">
-          Solicitudes activas
-        </h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Solicitudes activas</h2>
         <span className="inline-flex items-center justify-center min-w-7 h-6 px-2 rounded-full bg-primary text-primary-foreground text-xs font-bold">
           {kpis.activas}
         </span>
@@ -100,7 +116,10 @@ function InboxPage() {
       <Card className="p-4 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Search
+              className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -142,6 +161,25 @@ function InboxPage() {
           <div></div>
         </div>
         <ul className="divide-y divide-border">
+          {loading && (
+            <li className="px-5 py-8 text-center text-sm text-muted-foreground">
+              Loading purchase requests...
+            </li>
+          )}
+          {error && (
+            <li className="px-5 py-8 text-center">
+              <div className="font-semibold text-destructive">Could not load requests</div>
+              <div className="mt-1 text-sm text-muted-foreground">{error}</div>
+            </li>
+          )}
+          {!loading && !error && filtered.length === 0 && (
+            <li className="px-5 py-8 text-center">
+              <div className="font-semibold text-foreground">No purchase requests yet</div>
+              <Link to="/nueva" className="mt-2 inline-flex text-sm font-semibold text-primary">
+                Create the first request
+              </Link>
+            </li>
+          )}
           {filtered.map((r) => {
             const days = daysUntil(r.deadline);
             return (
@@ -167,7 +205,10 @@ function InboxPage() {
                     {fmtPYG(r.total_estimated_pyg)}
                   </div>
                   <StatusPill value={r.status} />
-                  <ArrowRight className="size-4 text-muted-foreground justify-self-end" aria-hidden />
+                  <ArrowRight
+                    className="size-4 text-muted-foreground justify-self-end"
+                    aria-hidden
+                  />
                 </Link>
               </li>
             );

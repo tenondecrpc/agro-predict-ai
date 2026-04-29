@@ -1,45 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Inbox,
-  PlusCircle,
-  FileText,
-  Upload,
-  Sparkles,
-  Building2,
-  LineChart,
-  Sprout,
-} from "lucide-react";
-
-const HERO_ID = "req-urea-2627";
+import { Inbox, PlusCircle, Building2, LineChart, Sprout } from "lucide-react";
 
 const NAV = [
   { kind: "static", to: "/", label: "Inbox", icon: Inbox, exact: true },
   { kind: "static", to: "/nueva", label: "Nueva solicitud", icon: PlusCircle },
-  {
-    kind: "param",
-    to: "/solicitud/$id" as const,
-    params: { id: HERO_ID },
-    matchPrefix: "/solicitud",
-    label: "Detalle (urea)",
-    icon: FileText,
-  },
-  {
-    kind: "param",
-    to: "/cargar/$id" as const,
-    params: { id: HERO_ID },
-    matchPrefix: "/cargar",
-    label: "Cargar cotización",
-    icon: Upload,
-  },
-  {
-    kind: "param",
-    to: "/comparar/$id" as const,
-    params: { id: HERO_ID },
-    matchPrefix: "/comparar",
-    label: "Comparar y recomendar",
-    icon: Sparkles,
-    hero: true,
-  },
   { kind: "static", to: "/proveedores", label: "Proveedores", icon: Building2 },
   { kind: "static", to: "/dashboard", label: "Dashboard", icon: LineChart },
 ] as const;

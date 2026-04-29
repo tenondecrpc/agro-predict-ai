@@ -23,6 +23,21 @@ def test_health_endpoints_report_ready() -> None:
     assert "agropredict_persistence_migration_info" in metrics.text
 
 
+def test_local_frontend_port_8080_is_allowed_by_cors() -> None:
+    client = TestClient(create_app())
+
+    response = client.options(
+        "/api/v1/procurement/suppliers?tenant_id=tenant-yguazu",
+        headers={
+            "Origin": "http://localhost:8080",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8080"
+
+
 def test_simulate_runtime_flow_returns_completed_run() -> None:
     client = TestClient(create_app())
 
