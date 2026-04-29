@@ -1,0 +1,655 @@
+import { startTransition, useEffect, useState } from "react";
+
+import {
+  activeGraphCandidate,
+  agentCards,
+  apiDeprecations,
+  deploymentProfile,
+  initialRuns,
+  invalidGraphCandidate,
+  persistenceStatus,
+  roles,
+  spriteManifest,
+  type OperatorRole,
+  type RunCard,
+  type RunStatus,
+} from "./data/sampleData";
+import AgentHealthPanel from "./components/AgentHealthPanel";
+import FeatureFlagManager from "./components/FeatureFlagManager";
+import FlowSimulator from "./components/FlowSimulator";
+import PredictionList from "./components/PredictionList";
+import TenantManager from "./components/TenantManager";
+import { t } from "./i18n/messages";
+import { validateGraphCandidate } from "./lib/graphValidation";
+
+type TabKey = "dashboard" | "control-room" | "interrupts" | "graph-editor" | "admin" | "flow-simulator" | "predictions" | "tenant-admin";
+type PublicComponentStatus = "operational" | "degraded" | "partial_outage" | "major_outage";
+type PublicStatusComponent = {
+  component: string;
+  status: PublicComponentStatus;
+  message: string;
+};
+type PublicStatusPage = {
+  schema_version: string;
+  generated_at: string;
+  status: PublicComponentStatus;
+  components: PublicStatusComponent[];
+};
+
+const statusCycle: Record<RunStatus, RunStatus> = {
+  planning: "active",
+  active: "review",
+  review: "completed",
+  paused: "active",
+  dlq: "paused",
+  completed: "planning",
+};
+
+const roleTabs: Record<OperatorRole, TabKey[]> = {
+  viewer: ["dashboard", "control-room", "predictions"],
+  operator: ["dashboard", "control-room", "interrupts", "predictions"],
+  admin: ["dashboard", "control-room", "interrupts", "graph-editor", "admin", "flow-simulator", "predictions", "tenant-admin"],
+  "super-admin": ["dashboard", "control-room", "interrupts", "graph-editor", "admin", "flow-simulator", "predictions", "tenant-admin"],
+};
+
+const liveTabLabels: Record<TabKey, string> = {
+  dashboard: "Dashboard",
+  "control-room": "Control Room",
+  interrupts: "Interrupts",
+  "graph-editor": "Graph Editor",
+  admin: "Admin",
+  "flow-simulator": "Prediction Flow Simulator",
+  predictions: "Predictions",
+  "tenant-admin": "Tenant Admin",
+};
+
+function roleRank(role: OperatorRole): number {
+  return roles.indexOf(role);
+}
+
+function statusTone(status: RunStatus): string {
+  return `status-pill status-${status}`;
+}
+
+function publicStatusTone(status: PublicComponentStatus): string {
+  return `status-pill status-public-${status}`;
+}
+
+function runStatusLabel(run: RunCard): string {
+  return `${run.predictionId} is ${run.status} at ${run.agent}`;
+}
+
+function runAgentSpritePath(agent: RunCard["agent"]): string {
+  const manifestEntry = spriteManifest.find((entry) => entry.runtimeRole === agent);
+  return manifestEntry?.path ?? "/assets/sprites/agent_a.png";
+}
+
+export default function App() {
+  const locale = "en";
+  const [role, setRole] = useState<OperatorRole>("viewer");
+  const [tab, setTab] = useState<TabKey>("dashboard");
+  const [runs, setRuns] = useState<RunCard[]>(initialRuns);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [liveAnnouncement, setLiveAnnouncement] = useState("Dashboard connected to live updates.");
+  const [graphSource, setGraphSource] = useState(
+    JSON.stringify(activeGraphCandidate, null, 2),
+  );
+  const [uploadNotice, setUploadNotice] = useState("");
+  const [dryRunNotice, setDryRunNotice] = useState("");
+  const [degradedCredentialActive, setDegradedCredentialActive] = useState(false);
+  const [statusPage, setStatusPage] = useState<PublicStatusPage | null>(null);
+  const [statusPageError, setStatusPageError] = useState("");
+
+  const visibleTabs = roleTabs[role];
+  const graphValidation = validateGraphCandidate(graphSource);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      startTransition(() => {
+        setRuns((currentRuns) => {
+          const updatedRuns = currentRuns.map((run, index) =>
+            index === 0
+              ? { ...run, status: statusCycle[run.status] }
+              : run,
+          );
+          setLiveAnnouncement(runStatusLabel(updatedRuns[0]));
+          return updatedRuns;
+        });
+      });
+    }, 3500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!visibleTabs.includes(tab)) {
+      setTab(visibleTabs[0]);
+    }
+  }, [tab, visibleTabs]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadStatusPage() {
+      try {
+        const response = await fetch("/api/v1/status-page", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("status-page-unavailable");
+        }
+        const payload = (await response.json()) as PublicStatusPage;
+        setStatusPage(payload);
+        setStatusPageError("");
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setStatusPageError(t(locale, "statusPageUnavailable"));
+        }
+      }
+    }
+
+    void loadStatusPage();
+
+    return () => {
+      controller.abort();
+    };
+  }, [locale]);
+
+  const pausedRuns = runs.filter((run) => run.status === "paused");
+  const dlqRuns = runs.filter((run) => run.status === "dlq");
+
+  return (
+    <div className={reducedMotion ? "app-shell reduced-motion" : "app-shell"}>
+      <div aria-live="polite" className="sr-only">
+        {liveAnnouncement}
+      </div>
+      <header className="top-bar">
+        <div>
+          <p className="eyebrow">{t(locale, "appSubtitle")}</p>
+          <h1>{t(locale, "appTitle")}</h1>
+        </div>
+        <div className="toolbar">
+          <label>
+            <span>{t(locale, "roleLabel")}</span>
+            <select
+              aria-label={t(locale, "roleLabel")}
+              value={role}
+              onChange={(event) => setRole(event.target.value as OperatorRole)}
+            >
+              {roles.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="toggle">
+            <input
+              checked={reducedMotion}
+              onChange={(event) => setReducedMotion(event.target.checked)}
+              type="checkbox"
+            />
+            <span>{t(locale, "reducedMotion")}</span>
+          </label>
+          <div className="locale-chip" aria-label={t(locale, "localeLabel")}>
+            {t(locale, "localeValue")}
+          </div>
+        </div>
+      </header>
+
+      <main className="layout-grid">
+        <aside className="nav-panel" aria-label="Operator navigation">
+          <p className="panel-title">{t(locale, "liveStatus")}</p>
+          <nav>
+            {visibleTabs.map((item) => (
+              <button
+                className={item === tab ? "nav-button active" : "nav-button"}
+                key={item}
+                onClick={() => {
+                  setTab(item);
+                  setLiveAnnouncement(`${liveTabLabels[item]} opened.`);
+                }}
+                type="button"
+              >
+                {liveTabLabels[item]}
+              </button>
+            ))}
+          </nav>
+          {role === "super-admin" ? (
+            <div className="global-scope">{t(locale, "globalScope")}</div>
+          ) : null}
+          <p className="support-copy">{t(locale, "englishOnly")}</p>
+        </aside>
+
+        <section className="content-panel">
+          {tab === "dashboard" ? (
+            <div className="stack">
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "activeRuns")}</h2>
+                  <span className="legend">{t(locale, "runLegend")}</span>
+                </div>
+                <div className="run-grid">
+                  {runs.map((run) => (
+                    <article className="run-card" key={run.id}>
+                      <div className="run-card-top">
+                        <strong>{run.predictionId}</strong>
+                        <span className={statusTone(run.status)}>{run.status}</span>
+                      </div>
+                      <p>{run.lane}</p>
+                      <p>{run.agent}</p>
+                      <p>Retries: {run.retryCount}</p>
+                      <p>Cost: ${run.costUsd.toFixed(2)}</p>
+                      {run.status === "paused" && roleRank(role) >= roleRank("operator") ? (
+                        <div className="button-row">
+                          <button type="button">{t(locale, "breakGlass")}</button>
+                          <button type="button">{t(locale, "retry")}</button>
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "control-room" ? (
+            <div className="stack">
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "controlRoomHeading")}</h2>
+                  <span className="legend">{t(locale, "spriteBundledOnly")}</span>
+                </div>
+                <div className="control-room" role="list">
+                  {runs.map((run) => (
+                    <div
+                      aria-label={`${run.predictionId} ${run.agent} ${run.status}`}
+                      className="desk-lane"
+                      key={run.id}
+                      role="listitem"
+                    >
+                      <div
+                        className={`sprite-tile sprite-${run.agent}`}
+                        style={{ backgroundImage: `url(${runAgentSpritePath(run.agent)})` }}
+                        aria-hidden="true"
+                      />
+                      <div className="desk-copy">
+                        <strong>{run.predictionId}</strong>
+                        <span>{run.agent}</span>
+                        <span className={statusTone(run.status)}>{run.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "spriteHeading")}</h2>
+                  <button
+                    onClick={() => setUploadNotice(t(locale, "uploadDeferred"))}
+                    type="button"
+                  >
+                    {t(locale, "uploadSprite")}
+                  </button>
+                </div>
+                {uploadNotice ? <p className="notice">{uploadNotice}</p> : null}
+                <ul className="manifest-list">
+                  {spriteManifest.map((entry) => (
+                    <li key={entry.spriteId}>
+                      <code>{entry.spriteId}</code> - {entry.sourceKind} - {entry.path}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "interrupts" ? (
+            <div className="stack">
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "breakGlass")}</h2>
+                  <span className="legend">{pausedRuns.length} pending</span>
+                </div>
+                <div className="run-grid">
+                  {pausedRuns.map((run) => (
+                    <article className="run-card" key={run.id}>
+                      <strong>{run.predictionId}</strong>
+                      <p>{run.agent}</p>
+                      <p className="notice">Paused on registered prediction exception path.</p>
+                      <div className="button-row">
+                        <button type="button">{t(locale, "approve")}</button>
+                        <button type="button">{t(locale, "dismiss")}</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "dlqTitle")}</h2>
+                  <span className="legend">{dlqRuns.length} records</span>
+                </div>
+                <div className="run-grid">
+                  {dlqRuns.map((run) => (
+                    <article className="run-card" key={run.id}>
+                      <strong>{run.predictionId}</strong>
+                      <p>Last stage: {run.agent}</p>
+                      <div className="button-row">
+                        <button type="button">{t(locale, "retry")}</button>
+                        <button type="button">{t(locale, "dismiss")}</button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "graph-editor" ? (
+            <div className="stack">
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "graphEditor")}</h2>
+                  <span className="legend">{t(locale, "readOnlyGraph")}</span>
+                </div>
+                <p className="notice">{t(locale, "graphParityGap")}</p>
+                <div className="button-row">
+                  <button
+                    onClick={() =>
+                      setGraphSource(JSON.stringify(activeGraphCandidate, null, 2))
+                    }
+                    type="button"
+                  >
+                    {t(locale, "loadActiveGraph")}
+                  </button>
+                  <button
+                    onClick={() =>
+                      setGraphSource(JSON.stringify(invalidGraphCandidate, null, 2))
+                    }
+                    type="button"
+                  >
+                    {t(locale, "loadInvalidGraph")}
+                  </button>
+                </div>
+                <div className="graph-layout">
+                  <textarea
+                    aria-label={t(locale, "exportHeading")}
+                    className="graph-source"
+                    onChange={(event) => setGraphSource(event.target.value)}
+                    value={graphSource}
+                  />
+                  <div className="graph-summary">
+                    <h3>{t(locale, "validationHeading")}</h3>
+                    {graphValidation.valid ? (
+                      <p className="success">Candidate matches protected invariants.</p>
+                    ) : (
+                      <ul className="error-list">
+                        {graphValidation.errors.map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="protected-note">
+                      <strong>{t(locale, "graphProtected")}</strong>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "flow-simulator" && roleRank(role) >= roleRank("admin") ? (
+            <div className="stack">
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "flowSimulator")}</h2>
+                  <span className="legend">{t(locale, "flowSimulatorIntro")}</span>
+                </div>
+                <FlowSimulator candidate={activeGraphCandidate} reducedMotion={reducedMotion} />
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "admin" ? (
+            <div className="stack">
+              {degradedCredentialActive ? (
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="pat-mode-banner"
+                  style={{
+                    background: "#7c3b00",
+                    color: "#fff8f0",
+                    border: "2px solid #d46800",
+                    borderRadius: "4px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <strong aria-label="Warning">Degraded Credential Active</strong>
+                  <span>
+                    This tenant is using a degraded external integration credential. Rate limits are reduced and credential rotation SLA applies.
+                  </span>
+                  {role === "super-admin" ? (
+                    <button
+                      type="button"
+                      onClick={() => setDegradedCredentialActive(false)}
+                      aria-label="Dismiss degraded credential notice"
+                      style={{ marginLeft: "auto" }}
+                    >
+                      Dismiss
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              <section
+                aria-label="Deployment profile"
+                className="profile-banner"
+                role="status"
+              >
+                <div>
+                  <span className="profile-label">Deployment profile</span>
+                  <strong>{deploymentProfile.profile.replace("_", " ")}</strong>
+                </div>
+                <div>
+                  <span className="profile-label">LLM provider</span>
+                  <strong>{deploymentProfile.provider}</strong>
+                </div>
+                <div>
+                  <span className="profile-label">Telemetry</span>
+                  <strong>{deploymentProfile.telemetry}</strong>
+                </div>
+                <div>
+                  <span className="profile-label">Status sync</span>
+                  <strong>{deploymentProfile.statusSync}</strong>
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "admin")}</h2>
+                  <span className="legend">{t(locale, "shadowEvidence")}</span>
+                </div>
+                <div className="run-grid">
+                  {agentCards.map((card) => (
+                    <article className="run-card" key={card.role}>
+                      <strong>{card.role}</strong>
+                      <p>{card.model}</p>
+                      <p>{card.retryBudget}</p>
+                      <p>{card.tools.join(", ")}</p>
+                      <button
+                        onClick={() =>
+                          setDryRunNotice(t(locale, "dryRunSuccess"))
+                        }
+                        type="button"
+                      >
+                        Dry-run
+                      </button>
+                    </article>
+                  ))}
+                </div>
+                {dryRunNotice ? <p className="notice">{dryRunNotice}</p> : null}
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "metrics")}</h2>
+                  <span className="legend">{t(locale, "costs")}</span>
+                </div>
+                <div className="metrics-grid">
+                  <div className="metric-card">
+                    <span>Shadow pass rate</span>
+                    <strong>96%</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Prediction budget burn</span>
+                    <strong>$12.00</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Fallbacks today</span>
+                    <strong>4</strong>
+                  </div>
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "publicStatus")}</h2>
+                  <span className="legend">
+                    {statusPage ? statusPage.schema_version : t(locale, "loading")}
+                  </span>
+                </div>
+                {statusPageError ? (
+                  <p className="notice" role="status">
+                    {statusPageError}
+                  </p>
+                ) : null}
+                {statusPage ? (
+                  <>
+                    <div className="metric-card status-summary" role="status">
+                      <span>{t(locale, "overallStatus")}</span>
+                      <strong className={publicStatusTone(statusPage.status)}>
+                        {statusPage.status.replace("_", " ")}
+                      </strong>
+                    </div>
+                    <div
+                      aria-label="Public status components"
+                      className="status-grid"
+                      role="list"
+                    >
+                      {statusPage.components.map((component) => (
+                        <article className="run-card" key={component.component} role="listitem">
+                          <div className="run-card-top">
+                            <strong>{component.component.replace("_", " ")}</strong>
+                            <span className={publicStatusTone(component.status)}>
+                              {component.status.replace("_", " ")}
+                            </span>
+                          </div>
+                          <p>{component.message}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>{t(locale, "persistenceStatus")}</h2>
+                  <span className="legend">Text labels mirror color state.</span>
+                </div>
+                <div className="status-grid">
+                  <article className="metric-card">
+                    <span>{t(locale, "migrationVersion")}</span>
+                    <strong>{persistenceStatus.migrationVersion}</strong>
+                  </article>
+                  <article className="metric-card">
+                    <span>{t(locale, "appliedVersion")}</span>
+                    <strong>{persistenceStatus.appliedVersion}</strong>
+                  </article>
+                  <article className="metric-card">
+                    <span>{t(locale, "activeSnapshot")}</span>
+                    <strong>{persistenceStatus.activeSnapshotId}</strong>
+                  </article>
+                </div>
+                <h3>{t(locale, "adapterReadiness")}</h3>
+                <div className="status-grid" role="list">
+                  {persistenceStatus.adapters.map((adapter) => (
+                    <article className="run-card" key={adapter.name} role="listitem">
+                      <strong>{adapter.name}</strong>
+                      <p>
+                        {t(locale, "configured")}: {adapter.configured ? "yes" : "no"}
+                      </p>
+                      <p>
+                        {t(locale, "healthy")}: {adapter.healthy ? "yes" : "no"}
+                      </p>
+                      <span
+                        className={
+                          adapter.healthy ? "status-pill status-completed" : "status-pill status-paused"
+                        }
+                      >
+                        {adapter.healthy ? t(locale, "healthy") : t(locale, "degraded")}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-header">
+                  <h2>API deprecations</h2>
+                  <span className="legend">Deprecation and sunset timeline</span>
+                </div>
+                <div className="deprecation-list" role="list">
+                  {apiDeprecations.map((deprecation) => (
+                    <article
+                      className="run-card deprecation-card"
+                      key={deprecation.deprecationId}
+                      role="listitem"
+                    >
+                      <div className="run-card-top">
+                        <strong>
+                          {deprecation.method} {deprecation.route}
+                        </strong>
+                        <span className="status-pill status-paused">{deprecation.version}</span>
+                      </div>
+                      <dl className="timeline-fields">
+                        <div>
+                          <dt>Deprecated</dt>
+                          <dd>{deprecation.deprecatedAt}</dd>
+                        </div>
+                        <div>
+                          <dt>Sunset</dt>
+                          <dd>{deprecation.sunsetAt}</dd>
+                        </div>
+                        <div>
+                          <dt>Replacement</dt>
+                          <dd>{deprecation.replacementRoute}</dd>
+                        </div>
+                      </dl>
+                      <p className="notice">{deprecation.rationale}</p>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "predictions" ? (
+            <div className="stack">
+              <AgentHealthPanel />
+              <PredictionList tenantId="tenant-alpha" />
+            </div>
+          ) : null}
+
+          {tab === "tenant-admin" && roleRank(role) >= roleRank("admin") ? (
+            <div className="stack">
+              <TenantManager />
+              <FeatureFlagManager />
+            </div>
+          ) : null}
+        </section>
+      </main>
+    </div>
+  );
+}

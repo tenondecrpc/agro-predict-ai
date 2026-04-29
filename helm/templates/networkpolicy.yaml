@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agropredict-ai-backend-egress
+spec:
+  podSelector:
+    matchLabels:
+      app: agropredict-ai-backend
+  policyTypes:
+    - Egress
+  egress:
+    {{- if .Values.networkPolicy.denyExternalLlmEgress }}
+    {{- range .Values.networkPolicy.internalServices }}
+    - to:
+        - podSelector:
+            matchLabels:
+{{ toYaml .podSelector | indent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .port }}
+    {{- end }}
+    {{- if .Values.networkPolicy.internalDns.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+{{ toYaml .Values.networkPolicy.internalDns.namespaceSelector | indent 14 }}
+          podSelector:
+            matchLabels:
+{{ toYaml .Values.networkPolicy.internalDns.podSelector | indent 14 }}
+      ports:
+        {{- range .Values.networkPolicy.internalDns.ports }}
+        - protocol: {{ .protocol }}
+          port: {{ .port }}
+        {{- end }}
+    {{- end }}
+    {{- else }}
+    - to:
+        {{- range .Values.networkPolicy.allowedCidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+    {{- end }}

@@ -1,0 +1,117 @@
+name: Supply Chain Hardening
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "backend/Dockerfile"
+      - "frontend/Dockerfile"
+      - ".github/workflows/supply-chain-hardening.yml"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ""
+
+      - name: trufflehog secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+  dockerfile-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install hadolint
+        run: |
+          curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x864 -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Lint backend Dockerfile
+        run: hadolint backend/Dockerfile --no-fail
+
+      - name: Lint frontend Dockerfile
+        run: hadolint frontend/Dockerfile --no-fail
+
+      - name: Check no latest tag in backend Dockerfile
+        run: |
+          if grep -qE 'FROM.*:latest' backend/Dockerfile; then
+            echo "FAIL: backend Dockerfile uses :latest tag"
+            exit 1
+          fi
+          echo "PASS: backend Dockerfile does not use :latest"
+
+      - name: Check no latest tag in frontend Dockerfile
+        run: |
+          if grep -qE 'FROM.*:latest' frontend/Dockerfile; then
+            echo "FAIL: frontend Dockerfile uses :latest tag"
+            exit 1
+          fi
+          echo "PASS: frontend Dockerfile does not use :latest"
+
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Sync backend dependencies
+        run: uv sync --project backend --dev
+
+      - name: Check Python license compliance
+        run: |
+          uv run --project backend pip-licenses \
+            --format=json \
+            --output-file=backend-licenses.json \
+            --with-authors \
+            --with-urls
+        continue-on-error: true
+
+      - name: Validate license allowlist
+        run: |
+          python scripts/check_license_allowlist.py backend-licenses.json .github/license-allowlist.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Check frontend license compliance
+        run: |
+          npx --prefix frontend license-checker \
+            --json \
+            --out frontend-licenses.json \
+            --start frontend
+
+      - name: Validate frontend license allowlist
+        run: |
+          python scripts/check_license_allowlist.py frontend-licenses.json .github/license-allowlist.json

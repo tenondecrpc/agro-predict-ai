@@ -1,0 +1,6 @@
+langsmith:
+  enabled: true
+  project: "agropredict-ai-prod"
+
+pagerDuty:
+  enabled: true

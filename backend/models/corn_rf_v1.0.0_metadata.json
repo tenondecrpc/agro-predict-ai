@@ -1,0 +1,25 @@
+{
+  "version": "v1.0.0",
+  "trained_at": "2026-04-29T02:10:51.699481+00:00",
+  "dataset_hash": "cc1f028286196d46c493f98d5bc68c57fecea83d1578af07ce0afe9294b5c4b6",
+  "mae": 0.285867,
+  "rmse": 0.35241,
+  "r2": 0.972448,
+  "feature_names": [
+    "soil_moisture",
+    "temperature_c",
+    "rainfall_mm"
+  ],
+  "artifact_path": "/Users/tenonde/Projects/personal/agro-predict-ai/backend/models/corn_rf_v1.0.0_cc1f0282.joblib",
+  "artifact_name": "corn_rf_v1.0.0_cc1f0282.joblib",
+  "p1_quantiles": {
+    "soil_moisture": 0.10984014212790084,
+    "temperature_c": 10.295071620702084,
+    "rainfall_mm": 10.849124447521687
+  },
+  "p99_quantiles": {
+    "soil_moisture": 0.893448047510346,
+    "temperature_c": 34.77164776112562,
+    "rainfall_mm": 99.32292184747797
+  }
+}
