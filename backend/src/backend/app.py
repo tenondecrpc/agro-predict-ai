@@ -25,6 +25,8 @@ from .knowledge import (
     build_knowledge_router,
     probe_pgvector_extension,
 )
+from .llm.adapter import build_llm_adapter
+from .llm.config import LLMConfig
 from .ml_models.api import build_models_router
 from .ml_models.repository import InMemoryModelRepository, PostgresModelRepository
 from .ml_models.service import ModelService
@@ -36,6 +38,27 @@ from .predictions.api import build_predictions_router
 from .predictions.field_data_resolver import FieldDataResolver
 from .predictions.health_api import build_agent_health_router
 from .predictions.service import PredictionService
+from .procurement.agents.comparator import ComparatorAgent
+from .procurement.agents.extractor import ExtractorAgent
+from .procurement.agents.negotiator import NegotiatorAgent
+from .procurement.agents.recommender import RecommenderAgent
+from .procurement.api import build_procurement_router
+from .procurement.decision_repository import (
+    InMemoryDecisionRepository,
+    PostgresDecisionRepository,
+)
+from .procurement.external.repository import (
+    InMemoryExternalSignalRepository,
+    PostgresExternalSignalRepository,
+)
+from .procurement.external.service import FXService, WeatherService
+from .procurement.ml.supplier_predictor import SupplierPredictor
+from .procurement.orchestrator import ProcurementOrchestrator
+from .procurement.repository import (
+    InMemoryProcurementRepository,
+    PostgresProcurementRepository,
+)
+from .procurement.service import ProcurementService
 from .runtime import ExecutionRequest, PlanningRequest, RuntimeWorkflow, TicketRunState
 from .webhook import build_webhook_admin_router
 
@@ -215,6 +238,54 @@ def create_app(
         app.include_router(build_models_router(model_service))
     if apex_service is not None:
         app.include_router(build_apex_router(apex_service))
+
+    # Procurement (spec 018) + external signals (spec 019 dependency)
+    if adapters.database.configured:
+        procurement_repo = PostgresProcurementRepository(
+            database_url=adapters.database.settings.sync_url(),
+        )
+        external_repo = PostgresExternalSignalRepository(
+            database_url=adapters.database.settings.sync_url(),
+        )
+        decision_repo = PostgresDecisionRepository(
+            database_url=adapters.database.settings.sync_url(),
+        )
+    else:
+        procurement_repo = InMemoryProcurementRepository()
+        external_repo = InMemoryExternalSignalRepository()
+        decision_repo = InMemoryDecisionRepository()
+    procurement_service = ProcurementService(repository=procurement_repo)
+    weather_service = WeatherService(repository=external_repo)
+    fx_service = FXService(repository=external_repo)
+
+    # LLM agents (spec 019 / 020). LLM_ENABLED=false produces deterministic
+    # fallbacks so the demo always runs.
+    llm_adapter = build_llm_adapter(LLMConfig.from_env())
+    extractor_agent = ExtractorAgent(llm_adapter)
+    comparator_agent = ComparatorAgent(llm_adapter)
+    recommender_agent = RecommenderAgent(llm_adapter)
+    negotiator_agent = NegotiatorAgent(llm_adapter)
+    supplier_predictor = SupplierPredictor()
+    orchestrator = ProcurementOrchestrator(
+        domain_repo=procurement_repo,
+        decision_repo=decision_repo,
+        comparator=comparator_agent,
+        recommender=recommender_agent,
+        supplier_predictor=supplier_predictor,
+        weather_service=weather_service,
+        fx_service=fx_service,
+    )
+
+    app.include_router(
+        build_procurement_router(
+            procurement_service,
+            weather_service=weather_service,
+            fx_service=fx_service,
+            extractor=extractor_agent,
+            negotiator=negotiator_agent,
+            orchestrator=orchestrator,
+        )
+    )
     for router in build_platform_routers(
         worker_controller=adapters.worker_controller,
         webhook_guard=adapters.webhook_guard,

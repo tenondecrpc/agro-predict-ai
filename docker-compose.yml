@@ -34,7 +34,7 @@ services:
       POSTGRES_PASSWORD: dev
       POSTGRES_DB: agropredict
     ports:
-      - "5432:5432"
+      - "5436:5432"
     volumes:
       - agropredict-ai-postgres:/var/lib/postgresql/data
     healthcheck:

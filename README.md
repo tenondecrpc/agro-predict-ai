@@ -1,593 +1,313 @@
-# AgroPredict AI — Multi-Agent Predictive Intelligence Platform
+# AgroBuy - Copiloto Inteligente de Compras
 
-A self-hosted, enterprise-grade multi-agent predictive intelligence system for agriculture and logistics. It uses LangGraph to orchestrate specialized agents that analyze data, execute ML models, and generate actionable recommendations - all running inside customer-owned Kubernetes infrastructure.
+> Hackathon Deep Dive 2026. Verticalizacion del desafio oficial
+> "Copiloto Inteligente de Compras" al sector cooperativas agro
+> paraguayas.
+>
+> Stack: Oracle APEX (UI buyer-facing) + FastAPI + LangGraph
+> orchestration + 4 LLM agents + ML supplier predictor + scoring
+> dual con datos climaticos en vivo (Open-Meteo).
 
-## How it works
+## Contexto
 
-A data ingestion event triggers the prediction pipeline. A LangGraph graph orchestrates five agents in sequence:
+El brief oficial pide un copiloto que registre solicitudes, cargue
+cotizaciones, compare alternativas, recomiende una opcion justificada
+y genere mensajes de negociacion - todo sobre Oracle APEX, con
+agentes de IA. AgroBuy verticaliza ese desafio al sector agro PY:
+Cooperativa Yguazu (Itapua) comprando urea, semilla y agroquimicos
+para la zafra de soja 26/27.
 
-```
-data_analyst -> ml_executor -> recommendation_engine -> explainability -> reviewer
-```
+**Diferenciadores tecnicos** (vs el wrapper de LLMs tipico):
 
-Each step is guarded: no prediction reaches production unless data quality gates pass, the model executes successfully, explainability verification completes, and the reviewer approves. Any failure routes to a registered escalation sink instead of silently continuing.
+1. **4 agentes LLM** con propositos distintos (extractor, comparador,
+   recomendador, negociador) - todos con fallback deterministico.
+2. **ML predictor real** (`GradientBoostingClassifier`, AUC 0.748
+   sobre 329 muestras sinteticas) para probabilidad de cumplimiento
+   de proveedor.
+3. **Anomaly detection** sobre precios contra bandas del catalogo agro.
+4. **Dual scoring**: Urgency (0.45 weather + 0.40 stock + 0.15
+   volatility) + Offer (0.35 supplier ML + 0.40 terms + 0.25
+   delivery risk) con matriz de decision explicable.
+5. **Open-Meteo en vivo** para riesgo climatico por departamento PY,
+   y FX USD/PYG en vivo para normalizacion de cotizaciones.
+6. **APEX + REST**: APEX es consumidor puro de la API; cero
+   duplicacion de schema.
 
-## Stack
+**Plan de producto vinculante**: ver
+[`compras/COMPRAS_AGRO_plan.md`](compras/COMPRAS_AGRO_plan.md).
+Plan de desarrollo ejecutable: [`compras/DEV_PLAN.md`](compras/DEV_PLAN.md).
 
-| Layer | Technology |
-|---|---|
-| Orchestration | LangGraph StateGraph |
-| API and webhooks | FastAPI |
-| Queue and pub/sub | ARQ + Redis |
-| Persistence | PostgreSQL 16 (predictions, config, audit, model metadata) |
-| ML | scikit-learn (extensible adapter for deep learning) |
-| Frontend | Vite + React + TypeScript |
-| Integration | Oracle APEX adapter (read-only ingestion, audited write-back) |
-| Secrets | HashiCorp Vault + External Secrets Operator |
-| Observability | OpenTelemetry, Prometheus, Grafana, Loki |
-| Delivery | Helm, Kubernetes (connected and air-gapped profiles) |
+## Status
 
-## Repository layout
-
-```
-backend/        FastAPI app, LangGraph graph, ARQ workers, ML adapters
-frontend/       Monitoring dashboards and admin UI
-helm/           Helm charts for Kubernetes (connected and air-gapped)
-k8s/            Base Kubernetes manifests for local development
-contracts/      Machine-readable API contracts and model validation registries
-operations/     Deployable operational artifacts such as alerts and dashboards
-docs/           Human-readable operator, integrator, and developer documentation
-specs/          SpecKit feature specifications (user stories, plans, tasks)
-```
-
-## Prerequisites
-
-| Tool | Minimum version | Purpose |
+| Fase | Componente | Estado |
 |---|---|---|
-| Python | 3.12+ | Backend runtime |
-| uv | latest | Python dependency management |
-| Node.js | 18+ | Frontend build and dev server |
-| Docker | 20+ | Local dependencies and Minikube image builds |
-| Docker Compose | 2.20+ | Local PostgreSQL and Redis |
-| minikube | 1.30+ | Local Kubernetes cluster |
-| kubectl | 1.28+ | Kubernetes CLI |
-| make | 3.81+ | Build and development automation |
+| 0 | Bootstrap del repo + scaffold | hecho |
+| 1 | Domain layer (spec 018): requests, suppliers, quotations, audit, RLS | hecho |
+| 2 | External signals: Open-Meteo + FX USD/PYG con cache 6h/1h | hecho |
+| 3 | Scoring + ML: dual score + GBM predictor + anomaly | hecho |
+| 4 | LLM agents: extractor + comparator + recommender + negotiator | hecho |
+| 5 | Orchestrator + 3 endpoints (extract, recommend, negotiate) | hecho |
+| 6 | APEX app (spec 021) - **build guide listo, app por construir** | en curso |
+| 7 | Fixtures + seed CLI (8 proveedores, 5 solicitudes, 15 cotizaciones, 157 deliveries) | hecho |
 
-Install [uv](https://docs.astral.sh/uv/) if you do not have it:
+**62/62 tests procurement verdes**. **528 tests totales**. Lint clean.
+Smoke E2E contra Postgres + Open-Meteo + open.er-api.com en vivo
+funcionando.
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+## Quick start (Git Bash, Windows)
 
-## Required environment variables
-
-The backend requires these variables at startup. Without them the process exits immediately with a `RuntimeError`.
-
-| Variable | Required | Source | Notes |
-|---|---|---|---|
-| `BACKEND_ENCRYPTION_ACTIVE_KEY_ID` | Yes | Secret | Key identifier (e.g. `kek-dev-v1`) |
-| `BACKEND_ENCRYPTION_ACTIVE_WRAPPING_KEY` | Yes | Secret | Fernet symmetric key (32-byte URL-safe base64) |
-| `BACKEND_WEBHOOK_SHARED_SECRET` | Yes | Secret | HMAC shared secret for webhook verification |
-| `BACKEND_DEPLOYMENT_PROFILE` | No | ConfigMap | `connected` or `air_gapped` (default: `connected`) |
-| `BACKEND_DATABASE_URL` | No | Secret | PostgreSQL URL. Without it, persistence shows "not configured" |
-| `BACKEND_REDIS_URL` | No | Secret | Redis URL. Without it, queue shows "not configured" |
-
-The `make minikube-secrets` target generates safe dev defaults for all required values. For local development without Kubernetes, `make dev-backend` auto-generates them if not already set in your environment.
-
-## Local development
-
-You have two options for running the system locally. Choose the one that fits your workflow.
-
-| Option | Use case | PostgreSQL | Redis | Kubernetes |
-|---|---|---|---|---|
-| **A - Docker Compose + native processes** | Daily development, fast iteration | Yes (Docker) | Yes (Docker) | No |
-| **B - Minikube** | Validate Kubernetes manifests, Helm charts, networking | No (placeholder) | No (placeholder) | Yes |
-
-### Option A - Docker Compose + native processes (recommended)
-
-This is the fastest way to get a fully functional local environment. PostgreSQL and Redis run in Docker containers while the backend and frontend run natively on your machine with hot reload.
-
-#### Step 1 - Start dependencies
+Pre-requisitos: Docker Desktop corriendo, [uv](https://docs.astral.sh/uv/),
+Python 3.12 (uv lo gestiona si no esta).
 
 ```bash
-make local-up
-```
+cd /c/Users/franc/Desktop/hackaton/agro-predict-ai-main
 
-This starts:
-- **PostgreSQL 16** with `pgvector` on port `5432`
-- **Redis 7** on port `6379`
-- **ARQ worker** for asynchronous prediction jobs
+# 1. Levantar infra (Postgres + Redis + ARQ worker)
+docker compose --profile worker up -d
 
-The database and Redis services persist data in named Docker volumes and expose health checks.
+# 2. Sincronizar deps de backend
+uv sync --project backend --dev
 
-#### Step 2 - Start the backend
+# 3. Cargar variables de entorno (Fernet key, webhook secret, db urls)
+set -a; source .env.local; set +a
 
-```bash
-make dev-backend
-```
-
-The Makefile automatically wires `BACKEND_DATABASE_URL` and `BACKEND_REDIS_URL` to the local Docker services unless you already have them set in your environment. The backend starts on http://127.0.0.1:8000 with hot reload.
-
-To verify everything is connected, open another terminal:
-
-```bash
-curl -s http://127.0.0.1:8000/healthz | python3 -m json.tool
-```
-
-You should now see `database` and `redis` as `configured: true`.
-
-#### Step 3 - Start the frontend
-
-```bash
-make dev-frontend
-```
-
-The dev server starts on http://127.0.0.1:5173. It proxies API requests to the local backend automatically.
-
-#### Full pipeline test
-
-With both backend and frontend running:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/api/v1/predictions \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id":"tenant-alpha","team_id":"team-core","crop":"corn","region":"midwest_us","time_horizon_days":30,"input_data":{"soil_moisture":0.35,"temperature_c":22.5,"rainfall_mm":45.0}}' | python3 -m json.tool
-```
-
-#### Stop dependencies
-
-```bash
-make local-down
-```
-
-This stops and removes the containers and volumes. To only stop without removing volumes, run `docker compose down`.
-
-#### Full local flow - all services (OpenCode-Go base)
-
-This section consolidates every step to run the complete pipeline locally with OpenCode-Go as the LLM provider. Each process runs in its own terminal.
-
-**Terminal 1 - Infrastructure (PostgreSQL + Redis + worker):**
-
-```bash
-make local-up
-```
-
-**Terminal 2 - Oracle XE (optional, for APEX integration testing):**
-
-```bash
-docker compose --profile oracle up -d
-```
-
-**Terminal 3 - Backend (with OpenCode-Go as LLM provider):**
-
-```bash
-export BACKEND_PROVIDER_OPENCODE_GO_ENDPOINT="http://localhost:8080/v1"
-make dev-backend
-```
-
-> OpenCode-Go must be running on port 8080. If you use a different port or hostname, adjust the endpoint URL accordingly.
-
-**Terminal 4 - Frontend:**
-
-```bash
-make dev-frontend
-```
-
-**Terminal 5 - ARQ Worker (optional, native hot reload workflow):**
-
-```bash
-make dev-worker
-```
-
-**Verify the full stack:**
-
-```bash
-# Health check - database and redis should show configured: true
-curl -s http://127.0.0.1:8000/healthz | python3 -m json.tool
-
-# Full prediction pipeline (synchronous, no worker needed)
-curl -s -X POST http://127.0.0.1:8000/api/v1/predictions \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id":"tenant-alpha","team_id":"team-core","crop":"corn","region":"midwest_us","time_horizon_days":30,"input_data":{"soil_moisture":0.35,"temperature_c":22.5,"rainfall_mm":45.0}}' | python3 -m json.tool
-```
-
-**Stop everything:**
-
-```bash
-make local-down
-docker compose --profile oracle down   # if Oracle was started
-```
-
-#### Useful targets
-
-```bash
-make local-up      # Start PostgreSQL + Redis + ARQ worker
-make local-down    # Stop and remove containers/volumes
-make local-logs    # Tail Docker Compose logs
-make local-status  # Show running containers
-make dev-backend   # Run backend with uv (hot reload)
-make dev-frontend  # Run frontend with Vite (hot reload)
-make dev-worker    # Run ARQ worker natively with uv
-```
-
-## Oracle APEX Configuration
-
-APEX connections store only a `credentials_ref`. At runtime, the adapter resolves the reference from Vault or, in local development, environment variables derived from the ref path.
-
-For `vault://apex/creds`, set:
-
-```bash
-export APEX_CREDS_USER=apex_user
-export APEX_CREDS_PASSWORD=apex_pass
-export APEX_CREDS_DSN=localhost:1521/APEXDB      # SQL mode
-export APEX_CREDS_BASE_URL=https://apex.example.com/ords  # REST mode
-```
-
-Start optional Oracle XE for integration testing with:
-
-```bash
-make apex-up
-```
-
-Create a connection through `/api/v1/apex/connections`, then call `/api/v1/apex/sync` with the connection ID and tenant ID. Write-back requires an explicit `approved_by` value and records an audit row.
-
-## SDD Roadmap Status
-
-| Spec | Status |
-|---|---|
-| 006 - Oracle APEX integration | Real SQL/REST adapter, PostgreSQL persistence, RLS migration, and audit/write-back flow implemented |
-| 012 - Queue resilience | ARQ worker process, lifecycle hooks, health fields, local Compose service, and Helm worker rollout implemented |
-
-### Option B - Minikube
-
-Use this option when you need to validate Kubernetes manifests, Helm charts, NetworkPolicies, or deployment configurations. Note that the local Minikube setup does **not** deploy PostgreSQL or Redis - the backend starts in a degraded mode where persistence and queues show "not configured".
-
-#### Quick start
-
-```bash
-# Start Minikube
-minikube start --driver=docker --memory=4g --cpus=2
-
-# Build, configure, and deploy (one command)
-make minikube-up
-```
-
-`make minikube-up` performs these steps in order:
-
-1. **check-prereqs** - verifies all required tools are installed and Minikube is running
-2. **minikube-images** - builds backend and frontend images inside Minikube
-3. **minikube-secrets** - generates dev encryption keys and webhook secrets, applies them as a Kubernetes Secret
-4. **minikube-deploy** - applies all manifests from `k8s/`
-5. **minikube-wait** - waits for both pods to reach Ready status
-
-#### Access the services
-
-Minikube with the Docker driver does not expose NodePort services directly on the host IP. Use one of these methods:
-
-**Option A - Port-forward (recommended):**
-
-```bash
-# Run in a terminal - this blocks until you press Ctrl+C
-make port-forward
-
-# Then open in your browser:
-#   Backend API docs: http://127.0.0.1:18000/docs
-#   Frontend UI:      http://127.0.0.1:18080
-```
-
-Or manually in separate terminals:
-
-```bash
-kubectl port-forward svc/backend 18000:8000    # terminal 1
-kubectl port-forward svc/frontend 18080:80     # terminal 2
-```
-
-**Option B - Minikube service tunnel (opens browser automatically):**
-
-```bash
-minikube service backend   # opens API docs in browser
-minikube service frontend  # opens UI in browser
-```
-
-| Service | URL |
-|---|---|
-| Backend API | http://127.0.0.1:18000 |
-| API docs (Swagger) | http://127.0.0.1:18000/docs |
-| Frontend UI | http://127.0.0.1:18080 |
-
-> The port-forward must be running in a separate terminal for these localhost URLs to work.
-> If your curl returns an empty response or "Connection refused", the port-forward is not active.
-
-#### Testing the system on Minikube
-
-There are two ways to exercise the backend: the **simulate endpoint** (synchronous, runs the full graph in one request) and the **webhook endpoint** (asynchronous, requires an ARQ worker). For local validation, use the simulate endpoint.
-
-**Step 1 - Verify the backend is healthy**
-
-With port-forward running in another terminal:
-
-```bash
-curl -s http://127.0.0.1:18000/healthz | python3 -m json.tool
-```
-
-Expected response:
-
-```json
-{
-    "status": "ok",
-    "reasons": [],
-    "persistence": {
-        "database": {"name": "database", "configured": false, "healthy": false},
-        "redis": {"name": "redis", "configured": false, "healthy": false},
-        "encryption": {"name": "encryption", "configured": true, "healthy": true}
-    }
-}
-```
-
-`"status": "ok"` and `"encryption": {"configured": true}` are the two things that matter. Database and Redis show `"configured": false` in local Minikube - this is expected.
-
-**Step 2 - Run the full prediction pipeline**
-
-```bash
-curl -s -X POST http://127.0.0.1:18000/api/v1/predictions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant_id": "tenant-alpha",
-    "team_id": "team-core",
-    "crop": "corn",
-    "region": "midwest_us",
-    "time_horizon_days": 30,
-    "input_data": {
-      "soil_moisture": 0.35,
-      "temperature_c": 22.5,
-      "rainfall_mm": 45.0
-    }
-  }' | python3 -m json.tool
-```
-
-This endpoint runs the entire LangGraph graph synchronously. It takes a few seconds. Look for these fields in the response:
-
-| Field | Expected value | What it means |
-|---|---|---|
-| `status` | `"completed"` | The full pipeline finished successfully |
-| `status` | `"completed"` | The guarded prediction pipeline finished successfully |
-| `confidence_interval` | object | Model output includes uncertainty bounds |
-| `data_provenance` | non-empty array | Output is grounded in validated sources |
-| `explanation_artifact` | object | Explainability evidence was attached |
-
-If any guard fails, the response will show `escalation_reason` set and `status` will not be `"completed"`.
-
-**Step 3 - Test webhook guardrails (optional)**
-
-The webhook guard validates HMAC-SHA256 signatures for asynchronous ingestion events. It accepts the event but does **not** run the prediction graph synchronously - that requires an ARQ worker.
-
-```bash
-# Generate a signed request (Python required)
-python3 -c "
-import hmac, hashlib, json, time, secrets
-
-secret = '\$(kubectl get secret agropredict-ai-backend-secret -o jsonpath={.data.BACKEND_WEBHOOK_SHARED_SECRET} | base64 -d)'
-event = {'event_id': secrets.token_hex(8), 'source_id': 'weather-feed-42', 'tenant_id': 'tenant-alpha', 'team_id': 'team-core', 'summary': 'Weather feed refresh'}
-body = json.dumps(event)
-timestamp = int(time.time())
-payload = f'{timestamp}.{body}'
-sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
-print(f'curl -s -X POST http://127.0.0.1:18000/api/v1/webhooks/ingestion \\')
-print(f'  -H \"Content-Type: application/json\" \\')
-print(f'  -H \"X-Hub-Signature-256: sha256={sig}\" \\')
-print(f'  -H \"X-Atlassian-Webhook-Timestamp: {timestamp}\" \\')
-print(f'  -d \"{body}\"')
+# 4. Aplicar migraciones (incluye las 5 procurement: 0021..0025)
+uv run --project backend python -c "
+from backend.persistence.migrations import MigrationRunner
+print(MigrationRunner().ensure_current().current_revision)
 "
+
+# 5. Entrenar el predictor ML (ya esta entrenado en backend/models/, pero re-correr no rompe)
+uv run --project backend python -m backend.procurement.ml.train
+
+# 6. Cargar datos demo (8 proveedores agro PY, 5 solicitudes, 15 cotizaciones, 157 deliveries)
+uv run --project backend python -m backend.procurement.fixtures.seed
+
+# 7. Levantar el backend
+uv run --project backend uvicorn backend.app:app --host 127.0.0.1 --port 8000
+
+# 8. (otra terminal) verificar
+curl -s http://127.0.0.1:8000/healthz | python -m json.tool
+curl -s "http://127.0.0.1:8000/api/v1/procurement/requests?tenant_id=tenant-yguazu&team_id=team-compras" | python -m json.tool
 ```
 
-Expected response: `{"event_id": "...", "accepted": true, "deduplicated": false}`
+**Endpoints clave** (ver `/docs` para Swagger):
 
-If you get `{"detail": "invalid_signature"}`, the signature was computed incorrectly. The signing payload must be `"{timestamp}.{body}"` (dot-separated), not just the body.
+| Method | Path | Que hace |
+|---|---|---|
+| `POST` | `/api/v1/procurement/requests/{id}/recommend` | Pipeline completa: load -> ML -> anomaly -> scoring -> compare LLM -> recommend LLM -> persist |
+| `POST` | `/api/v1/procurement/quotations/extract` | LLM extractor (texto crudo -> JSON estructurado) |
+| `POST` | `/api/v1/procurement/quotations/{id}/negotiate` | LLM negotiator (email tono agro PY) |
+| `GET` | `/api/v1/procurement/weather/risk` | Open-Meteo + scoring 0-100 + cache 6h |
+| `GET` | `/api/v1/procurement/fx/usd_pyg` | Tipo de cambio + cache 1h + fallback |
 
-#### Quick test with Makefile
+## Estructura del repo
+
+```
+agro-predict-ai-main/
++-- backend/
+|   +-- alembic/versions/             # 25 migraciones (las nuestras: 0022-0025)
+|   +-- src/backend/
+|   |   +-- procurement/              # MODULO PRINCIPAL DEL HACKATON
+|   |   |   +-- models.py             # Pydantic: PurchaseRequest, Quotation, Supplier, etc.
+|   |   |   +-- repository.py         # Postgres + InMemory con RLS
+|   |   |   +-- service.py            # CRUD + audit
+|   |   |   +-- data_quality_gate.py  # Validity / currency / lead time / units
+|   |   |   +-- decision_repository.py # Scores, recommendations, negotiation messages, history
+|   |   |   +-- orchestrator.py       # Pipeline end-to-end (load -> ML -> score -> agents -> persist)
+|   |   |   +-- api.py                # Router /api/v1/procurement/*
+|   |   |   +-- agents/               # Fase 4: 4 LLM agents
+|   |   |   |   +-- base.py           # JSON extraction, safe_complete, fallback helpers
+|   |   |   |   +-- prompts.py        # Prompts en ingles (per AGENTS.md)
+|   |   |   |   +-- schemas.py        # ExtractedQuotation, ComparisonResult, Recommendation, NegotiationMessage
+|   |   |   |   +-- extractor.py      # Texto crudo -> JSON
+|   |   |   |   +-- comparator.py     # N quotes -> comparativa normalizada
+|   |   |   |   +-- recommender.py    # comparativa + scores -> markdown
+|   |   |   |   +-- negotiator.py     # quote + brechas -> email Spanish
+|   |   |   +-- ml/                   # Fase 3: ML supplier predictor + anomaly detector
+|   |   |   |   +-- supplier_predictor.py  # GBM + rules fallback
+|   |   |   |   +-- anomaly_detector.py    # Z-score sobre catalog bands
+|   |   |   |   +-- features.py            # 9 features per supplier
+|   |   |   |   +-- train.py               # CLI: synthetic dataset + train + persist .joblib
+|   |   |   +-- scoring/              # Fase 3: dual scoring
+|   |   |   |   +-- urgency.py        # 0.45 weather + 0.40 delivery + 0.15 volatility
+|   |   |   |   +-- offer.py          # 0.35 supplier + 0.40 terms + 0.25 (100-risk)
+|   |   |   |   +-- decision_matrix.py
+|   |   |   +-- external/             # Fase 2: Open-Meteo + FX
+|   |   |   |   +-- weather.py        # Open-Meteo client + risk score
+|   |   |   |   +-- fx.py             # open.er-api.com + fallback configurable
+|   |   |   |   +-- departments.py    # 17 dpto PY -> coords
+|   |   |   |   +-- repository.py
+|   |   |   |   +-- service.py        # Cache-aside
+|   |   |   +-- fixtures/             # Fase 7: seed demo data
+|   |   |       +-- agro_data.py      # 8 proveedores, 6 catalogo, 5 solicitudes, 15 cotizaciones
+|   |   |       +-- seed.py           # CLI: wipe + reseed contra Postgres
+|   |   +-- llm/                      # adapter LLM compartido (existente del repo)
+|   |   +-- predictions/              # pipeline agronomic (NO usamos, queda intacto)
+|   |   +-- integrations/oracle_apex/ # adapter APEX read-only + write-back (heredado)
+|   |   +-- ...                       # tenancy, billing, observability, etc. (plataforma base)
+|   +-- models/
+|   |   +-- procurement_supplier_predictor_v1.joblib  # GBM entrenado, AUC 0.748
+|   |   +-- corn_rf_v1.0.0_*.joblib                   # modelo corn agronomic (no usado)
+|   +-- tests/
+|       +-- integration/
+|           +-- test_procurement_domain.py            # 12 tests
+|           +-- test_procurement_external_signals.py  # 10 tests
+|           +-- test_procurement_scoring_and_ml.py    # 20 tests
+|           +-- test_procurement_agents.py            # 11 tests
+|           +-- test_procurement_orchestrator.py      # 9 tests
++-- compras/
+|   +-- COMPRAS_AGRO_plan.md          # Plan vinculante (verticalizacion agro)
+|   +-- COMPRAS_plan.md               # Plan generico de respaldo
+|   +-- DEV_PLAN.md                   # Plan de desarrollo ejecutable (7 fases)
++-- operations/apex/                  # Build guide para Fase 6 (APEX app)
+|   +-- README.md                     # Indice + arquitectura + tiempos
+|   +-- 01_prerequisites.md           # APEX workspace + ngrok + seed
+|   +-- 02_workspace_setup.md         # App shell, app items, theme
+|   +-- 03_rest_sources.md            # 16 REST Data Sources al backend
+|   +-- 04_pages/                     # Build guide pagina por pagina
+|   |   +-- 01_login.md               # Mock role selector
+|   |   +-- 02_inbox.md               # Lista de solicitudes
+|   |   +-- 03_create_request.md      # Form de creacion
+|   |   +-- 04_request_detail.md      # Detalle + cotizaciones
+|   |   +-- 05_upload_quotation.md    # Extractor IA
+|   |   +-- 06_compare_recommend.md   # STAR PAGE
+|   +-- 05_demo_script.md             # 90 segundos del demo arc
+|   +-- 06_export_checklist.md        # Pre-export + import + tag
++-- specs/                            # SpecKit features (006, 018-021 son las nuestras)
+|   +-- 018-procurement-domain/       # spec.md + plan.md
+|   +-- 019-procurement-decision-pipeline/
+|   +-- 020-procurement-negotiation-assistant/
+|   +-- 021-procurement-apex-application/
++-- agro_procurement_weather_scoring.md  # Fundamentacion del scoring climatico
++-- frontend/                         # Vite/React (operator console del upstream, no del comprador)
++-- helm/, k8s/                       # NO usados en el hackaton
++-- AGENTS.md                         # Guia para agentes / repo conventions
++-- CLAUDE.md                         # Bootstrap defers a AGENTS.md
++-- .env.example, .env.local          # .env.local gitignored
+```
+
+## Demo arc (90 segundos)
+
+Ver [`operations/apex/05_demo_script.md`](operations/apex/05_demo_script.md).
+Resumen:
+
+1. Login como Comprador (Ana Rojas, Cooperativa Yguazu).
+2. Inbox: 5 solicitudes activas; abrir la de urea zafra soja 26/27.
+3. Detalle: 4 cotizaciones recibidas; click "Comparar y recomendar".
+4. Tabla normalizada con FX del dia; Atlantic flagged anomaly.
+5. Pipeline corre 3 segundos. Recomendacion: **Tecnomyl**, score 65,
+   banda `buy_with_followup`. 3 score cards visibles. Markdown con
+   citas a ML p_on_time, weather risk, supplier history.
+6. "Generar mensaje de negociacion": email Spanish 250 palabras,
+   tono agro PY, listo para enviar.
+7. (Opcional) Switch a rol Director, dashboard ejecutivo.
+
+## Pending work (estado al 2026-04-29)
+
+### Critico para el demo
+
+- [ ] **Construir las 6 paginas APEX** siguiendo
+      `operations/apex/04_pages/`. Tiempo estimado: 4 horas.
+      Prioridad: P1 + P2 + P4 + P6. Si hay tiempo: P3 + P5.
+- [ ] **ngrok configurado** y URL inyectada como `BACKEND_URL` en
+      APEX antes de cada demo.
+- [ ] **LLM keys**: setear `LLM_ENABLED=true` + `LLM_API_KEY` en
+      `.env.local` para que los agentes usen el LLM real (sino quedan
+      en modo `fallback` deterministico, que tambien funciona pero el
+      pitch es mejor con LLM real).
+- [ ] **Pre-warm LLM** con un call dummy 30s antes del demo para
+      evitar cold start.
+- [ ] **Video de respaldo** del demo grabado, por si falla la
+      conectividad.
+- [ ] **Ensayar** el demo arc 2 veces.
+
+### Polish opcional
+
+- [ ] Ajustar bandas del catalogo agro para que Atlantic salga
+      claramente como anomalia (actualmente con FX live el flag puede
+      moverse). Editar `procurement/fixtures/agro_data.py` y re-seed.
+- [ ] **Frontend Lovable** alternativo o complementario al APEX,
+      apuntando a los mismos endpoints REST. Prompt listo en chat
+      anterior si lo querias.
+- [ ] **Pagina 7 (catalogo proveedores)** y **pagina 8 (dashboard
+      ejecutivo)** en APEX si sobra tiempo - no son criticas.
+- [ ] PDF parser real para el extractor (actualmente solo texto). Ver
+      `procurement/agents/extractor.py` - agregar `pypdf` y vision
+      branch.
+- [ ] Exponer history per supplier en un endpoint (`GET
+      /api/v1/procurement/suppliers/{id}/history`) si APEX quiere
+      mostrarla.
+
+### Tests / robustez
+
+- [ ] Tests de integracion contra Postgres real (los actuales usan
+      InMemory para velocidad). El smoke E2E ya valida el path de
+      Postgres pero no esta en CI.
+- [ ] Test de carga del orchestrator con 50+ cotizaciones simultaneas
+      (no es realista para procurement pero buen para defender
+      escalabilidad si el jurado pregunta).
+- [ ] Mock del LLM en tests del orchestrator para verificar que el
+      Markdown del recomendador tiene el formato esperado (actualmente
+      solo verificamos que arranca con `## Recommendation:`).
+
+### Hardening que NO hace falta para el demo
+
+- LangGraph state machinery sobre el orchestrator (actualmente es
+  Python lineal). El plan menciona reusar `predictions/graph.py` -
+  refactor de 1 dia, no lo hagas pre-demo.
+- LangSmith tracing para debugging de los agentes en vivo. Util en
+  produccion, irrelevante para el demo.
+- Deploy a OCI Compute / Render. Solo necesario si querias presentar
+  con APEX en cloud apuntando a un backend remoto fijo (en lugar de
+  ngrok). Ver tabla en `operations/apex/01_prerequisites.md`.
+
+## Comandos utiles
 
 ```bash
-# Requires port-forward running in another terminal
-make smoke-test
+# Tests procurement (rapido, sin DB)
+uv run --project backend pytest backend/tests/integration/test_procurement_*.py
+
+# Lint
+uv run --project backend ruff check backend/src/backend/procurement
+
+# Re-seed demo
+uv run --project backend python -m backend.procurement.fixtures.seed
+
+# Re-train ML predictor
+uv run --project backend python -m backend.procurement.ml.train
+
+# Aplicar migraciones
+uv run --project backend python -c "
+from backend.persistence.migrations import MigrationRunner
+print(MigrationRunner().ensure_current())
+"
+
+# Ngrok para exponer a APEX
+ngrok http 8000
 ```
 
-This runs the health check and simulate workflow automatically.
-
-#### Useful Makefile targets
-
-```bash
-make help               # List all available targets
-make check-prereqs      # Verify tools and Minikube status
-make minikube-status    # Show pod status
-make minikube-logs      # Tail backend logs
-make generate-fernet-key # Print a new Fernet encryption key
-```
-
-#### Tear down
-
-```bash
-make minikube-delete
-minikube stop
-```
-
-## Troubleshooting
-
-### Docker Compose (Option A)
-
-#### PostgreSQL or Redis fails to start
-
-Check the container status:
-
-```bash
-make local-status
-make local-logs
-```
-
-Common causes:
-
-| Error | Fix |
-|---|---|
-| Port `5432` already in use | Stop the conflicting service or change the host port in `docker-compose.yml` |
-| Port `6379` already in use | Stop the conflicting service or change the host port in `docker-compose.yml` |
-| `pgvector` extension missing | Ensure the image is `pgvector/pgvector:pg16` |
-
-#### Backend cannot connect to database or Redis
-
-If you see `configured: false` for database or Redis in the health check, verify the containers are running and healthy:
-
-```bash
-docker compose ps
-```
-
-The `dev-backend` target auto-wires connection URLs only if the environment variables are **not** already set. If you previously exported custom values, unset them first:
-
-```bash
-unset BACKEND_DATABASE_URL BACKEND_REDIS_URL
-make dev-backend
-```
-
-### Minikube (Option B)
-
-#### Curl returns empty response or "Connection refused"
-
-The port-forward is not running or has stopped. Start it in a separate terminal:
-
-```bash
-make port-forward
-# or: kubectl port-forward svc/backend 18000:8000
-```
-
-If you restarted the deployment, the port-forward dies. Kill it and start a new one.
-
-#### Backend pod CrashLoopBackOff
-
-Check the logs:
-
-```bash
-kubectl logs -l app=backend --tail=50
-```
-
-Common causes:
-
-| Error | Fix |
-|---|---|
-| `Encryption is not configured` | Run `make minikube-secrets` and redeploy |
-| `Webhook shared secret is not configured` | Run `make minikube-secrets` and redeploy |
-| `Connection refused` to database | Database URL is missing or PostgreSQL is not running (non-fatal for local dev) |
-
-If you changed the secret after deploying, restart the pods:
-
-```bash
-kubectl rollout restart deployment/backend
-```
-
-#### Pod stuck in ImagePullBackOff
-
-The images must be built inside Minikube's Docker daemon:
-
-```bash
-minikube image build -t langgraph-backend:latest ./backend
-minikube image build -t langgraph-frontend:latest ./frontend
-kubectl rollout restart deployment/backend deployment/frontend
-```
-
-#### Port-forward fails
-
-Make sure the pods are running first:
-
-```bash
-kubectl get pods
-# Both should show 1/1 Running
-```
-
-If a port-forward is already running on that port, kill it:
-
-```bash
-lsof -ti:18000 | xargs kill 2>/dev/null
-lsof -ti:18080 | xargs kill 2>/dev/null
-```
-
-#### Cannot access services via NodePort URL
-
-Minikube with the Docker driver does not expose NodePort services on the host. The URLs like `http://192.168.49.2:30800` will not work from your browser. Use `make port-forward` or `minikube service` instead (see "Access the services" above).
-
-#### Health check shows "not configured" for database/Redis
-
-This is expected for local Minikube without PostgreSQL or Redis deployed. The backend starts successfully and serves API requests. Persistence-dependent features (checkpoints, queues, audit) will not function until you deploy those services.
-
-### Common to both options
-
-#### Webhook returns `invalid_signature`
-
-The HMAC signature must be computed over the string `"{timestamp}.{body}"` (dot-separated), not just the body. The `X-Hub-Signature-256` header value must be prefixed with `sha256=`. The timestamp in the header must match the one used in the signature payload.
-
-## Agent observability with LangSmith
-
-LangSmith tracing is disabled by default. The setup differs by environment.
-
-### Local development (Docker Compose)
-
-Export the variables before starting the backend:
-
-```bash
-export LANGCHAIN_TRACING_V2=true
-export LANGSMITH_API_KEY=<your-LANGSMITH_API_KEY>
-export LANGSMITH_PROJECT=agropredict-ai-local
-make dev-backend
-```
-
-### Local Minikube
-
-Enable LangSmith by setting the environment variables on the running deployment:
-
-```bash
-kubectl set env deployment/backend \
-  LANGCHAIN_TRACING_V2=true \
-  LANGSMITH_API_KEY=<your-LANGSMITH_API_KEY> \
-  LANGSMITH_PROJECT=agropredict-ai-local
-```
-
-### Staging and production (Helm + Vault)
-
-Store the API key in Vault once. External Secrets Operator syncs it into the cluster automatically (refreshes every hour).
-
-```bash
-vault kv patch kv/agropredict-ai/runtime \
-  langsmith_api_key=<your-LANGSMITH_API_KEY>
-```
-
-Then deploy with the environment-specific values file:
-
-```bash
-# Staging
-helm upgrade --install agropredict-ai ./helm \
-  -f helm/values.yaml \
-  -f helm/values-staging.yaml
-
-# Production
-helm upgrade --install agropredict-ai ./helm \
-  -f helm/values.yaml \
-  -f helm/values-prod.yaml
-```
-
-Each file sets `langsmith.enabled: true` and a dedicated project name (`agropredict-ai-staging` / `agropredict-ai-prod`) so traces are separated by environment in the LangSmith UI.
-
-For a self-hosted LangSmith instance add `langsmith.endpoint: "https://langsmith.example.internal"` to your values override.
-
-> **Air-gapped deployments:** LangSmith is permanently disabled in `values-air-gapped.yaml`. The pods set `DO_NOT_TRACK=1` and `LANGCHAIN_TRACING_V2=false` to suppress PostHog network flush errors from the `langsmith` transitive dependency.
-
-## Development commands
-
-```bash
-# Backend lint
-uv run --project backend ruff check backend/src backend/tests
-
-# Backend tests
-uv run --project backend pytest
-
-# Frontend test
-npm run --prefix frontend test -- --run
-
-# Frontend build
-npm run --prefix frontend build
-```
+## Built on AgroPredict AI
+
+Este proyecto se construye sobre la plataforma AgroPredict AI - un
+sistema multi-agente para prediccion agropecuaria con LangGraph,
+FastAPI, Postgres y Oracle APEX adapter. El modulo
+`backend/src/backend/procurement/` corre en paralelo al pipeline
+agronomic original (`backend/src/backend/predictions/`); ambos
+coexisten sin tocarse.
+
+Capas reutilizadas tal cual:
+- `backend.llm.adapter` - LLM client + circuit breaker
+- `backend.integrations.oracle_apex` - APEX adapter (no usado en
+  este flujo pero queda disponible)
+- `backend.persistence` - Postgres connection + RLS GUC pattern
+- `backend.queue` - ARQ worker
+
+Reglas del repo: ver [`AGENTS.md`](AGENTS.md). Convencion principal:
+ingles en codigo y docs; ASCII puro (sem em-dashes); tests primero
+para todo lo que toca el pipeline de produccion.
+
+## Licencia
+
+Hackathon project. No production-ready. Ver upstream LICENSE para
+los componentes heredados.
